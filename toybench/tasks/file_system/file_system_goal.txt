@@ -1,0 +1,27 @@
+You are an agent managing a simulated file system. You start in the `/project/src` directory. Your goal requires careful reading, conditional actions, file manipulation, and precise organization.
+
+Perform the following sequence of tasks:
+
+1.  **Read Configuration:** Navigate to the `/project` directory and read the content of the `config.txt` file. Parse this content to find the values for `version` and `target_dir`. Remember these values (e.g., version might be '1.2', target_dir might be 'data_v1.2').
+2.  **Create Archive Directory:** Based on the `version` you found, create a nested directory structure: `/archive/<version>/` (e.g., `/archive/1.2/`). You will need to create `/archive` first if it doesn't exist.
+3.  **Create Final Data Directory:** Based on the `target_dir` name you found, create a directory structure: `/final/<target_dir>/` (e.g., `/final/data_v1.2/`). You will need to create `/final` first if it doesn't exist.
+4.  **Archive Source Code:**
+    a.  Copy the files `main.py` and `utils.py` from your current directory (`/project/src`) to the archive directory you created (e.g., `/archive/1.2/`).
+    b.  After successfully copying both files, remove the original `main.py` and `utils.py` from `/project/src`.
+5.  **Handle Logs Conditionally:**
+    a.  Check if the file `/project/tmp/error.log` exists.
+    b.  Create the directory `/final/logs` if it doesn't already exist.
+    c.  **If** `/project/tmp/error.log` *exists*: Copy it to `/final/logs/error.log` and then remove the original `/project/tmp/error.log`.
+    d.  **If** `/project/tmp/error.log` *does not exist*: Create a new, empty file named `/final/logs/status_ok.txt` using `echo "" > /final/logs/status_ok.txt`.
+6.  **Process Staging File:**
+    a.  Copy the file `/staging/ready.txt` into the final data directory you created (e.g., `/final/data_v1.2/`).
+    b.  After successfully copying it, remove the original `/staging/ready.txt`.
+7.  **Create Summary Report:**
+    a.  Create a new file named `/final/summary.txt`. Write the following exact line into it (replace `<version>` with the actual version): `Archived version <version> to /archive/<version>/`
+    b.  Append a second line to the *same* file (`/final/summary.txt`). The line should be (replace `<target_dir>` with the actual target directory name): `Processed data to /final/<target_dir>/`
+8.  **Preserve Assets:** Ensure the file `/project/assets/logo.png` is not modified, moved, or deleted.
+9.  **Final Location:** Navigate to the `/final` directory. Your final command before signaling completion should leave you in `/final`.
+
+Available commands: `ls`, `cd`, `pwd`, `mkdir`, `cat`, `cp`, `rm`, `echo >` (overwrite/create file with text), `echo >>` (append text to file). Remember `cp` copies files, `rm` deletes them. Use `cat` to read file content. Use `echo "text" > filename` or `echo "text" >> filename` for writing.
+
+When ALL steps are complete and verified, respond with `TASK_COMPLETE`.

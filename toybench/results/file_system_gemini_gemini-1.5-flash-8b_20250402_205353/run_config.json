@@ -1,0 +1,13 @@
+{
+    "task": "file_system",
+    "provider": "gemini",
+    "model": null,
+    "attempts": 20,
+    "steps": 10,
+    "evaluator_model": null,
+    "log_level": "INFO",
+    "output_dir": "results",
+    "agent_model_used": "gemini-1.5-flash-8b",
+    "evaluator_model_used": "gemini-1.5-flash-8b",
+    "gemini_api_key_loaded": true
+}

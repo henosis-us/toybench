@@ -1,0 +1,588 @@
+2025-04-02 15:56:31,259 - __main__ - INFO - ToyBench Run Started
+2025-04-02 15:56:31,259 - __main__ - INFO - Arguments: Namespace(task='tic_tac_toe', provider='gemini', model=None, attempts=20, steps=10, evaluator_model=None, log_level='INFO', output_dir='results')
+2025-04-02 15:56:31,259 - __main__ - INFO - Config: API Key Loaded=Yes, Agent=gemini-2.0-flash, Evaluator=gemini-1.5-flash-8b
+2025-04-02 15:56:31,259 - __main__ - INFO - Output Dir: results\tic_tac_toe_gemini_gemini-2.0-flash_20250402_155631
+2025-04-02 15:56:31,260 - __main__ - INFO - Loaded prompts for task: tic_tac_toe
+2025-04-02 15:56:31,260 - llm_interface - INFO - GeminiInterface initialized with model: gemini-2.0-flash
+2025-04-02 15:56:31,260 - llm_interface - INFO - GeminiInterface initialized with model: gemini-1.5-flash-8b
+2025-04-02 15:56:31,260 - __main__ - INFO - --- Starting Attempt 1 ---
+2025-04-02 15:56:31,260 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:31,261 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:31,261 - __main__ - INFO - Attempt 1, Turn 1
+2025-04-02 15:56:31,824 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:31,825 - __main__ - INFO - Attempt 1, Turn 2
+2025-04-02 15:56:31,825 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:32,242 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:32,243 - __main__ - INFO - Attempt 1, Turn 3
+2025-04-02 15:56:32,640 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:32,640 - __main__ - INFO - Attempt 1, Turn 4
+2025-04-02 15:56:32,641 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:32,647 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:32,647 - __main__ - INFO - Attempt 1, Turn 5
+2025-04-02 15:56:33,113 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:33,113 - __main__ - INFO - Attempt 1, Turn 6
+2025-04-02 15:56:33,113 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:33,113 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:33,113 - __main__ - INFO - Attempt 1, Turn 7
+2025-04-02 15:56:33,547 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:33,548 - __main__ - INFO - Attempt 1, Turn 8
+2025-04-02 15:56:33,548 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:33,548 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:33,548 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:33,548 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:33,549 - __main__ - INFO - --- Attempt 1 Finished (2.29s) ---
+2025-04-02 15:56:33,549 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:33,549 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:33,549 - __main__ - INFO - --- Starting Attempt 2 ---
+2025-04-02 15:56:33,549 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:33,550 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:33,550 - __main__ - INFO - Attempt 2, Turn 1
+2025-04-02 15:56:33,946 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:33,946 - __main__ - INFO - Attempt 2, Turn 2
+2025-04-02 15:56:33,946 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:34,380 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:34,380 - __main__ - INFO - Attempt 2, Turn 3
+2025-04-02 15:56:34,811 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:34,811 - __main__ - INFO - Attempt 2, Turn 4
+2025-04-02 15:56:34,812 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:34,818 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:34,818 - __main__ - INFO - Attempt 2, Turn 5
+2025-04-02 15:56:35,227 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:35,228 - __main__ - INFO - Attempt 2, Turn 6
+2025-04-02 15:56:35,228 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:35,228 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:35,228 - __main__ - INFO - Attempt 2, Turn 7
+2025-04-02 15:56:35,688 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:35,688 - __main__ - INFO - Attempt 2, Turn 8
+2025-04-02 15:56:35,689 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:35,689 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:35,689 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:35,689 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:35,689 - __main__ - INFO - --- Attempt 2 Finished (2.14s) ---
+2025-04-02 15:56:35,689 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:35,690 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:35,690 - __main__ - INFO - --- Starting Attempt 3 ---
+2025-04-02 15:56:35,690 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:35,690 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:35,690 - __main__ - INFO - Attempt 3, Turn 1
+2025-04-02 15:56:36,106 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:36,106 - __main__ - INFO - Attempt 3, Turn 2
+2025-04-02 15:56:36,106 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:36,512 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:36,512 - __main__ - INFO - Attempt 3, Turn 3
+2025-04-02 15:56:36,904 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:36,904 - __main__ - INFO - Attempt 3, Turn 4
+2025-04-02 15:56:36,904 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:36,910 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:36,911 - __main__ - INFO - Attempt 3, Turn 5
+2025-04-02 15:56:37,299 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:37,299 - __main__ - INFO - Attempt 3, Turn 6
+2025-04-02 15:56:37,299 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:37,300 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:37,300 - __main__ - INFO - Attempt 3, Turn 7
+2025-04-02 15:56:37,677 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:37,677 - __main__ - INFO - Attempt 3, Turn 8
+2025-04-02 15:56:37,677 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:37,677 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:37,677 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:37,678 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:37,678 - __main__ - INFO - --- Attempt 3 Finished (1.99s) ---
+2025-04-02 15:56:37,678 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:37,678 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:37,678 - __main__ - INFO - --- Starting Attempt 4 ---
+2025-04-02 15:56:37,678 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:37,678 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:37,678 - __main__ - INFO - Attempt 4, Turn 1
+2025-04-02 15:56:38,124 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:38,124 - __main__ - INFO - Attempt 4, Turn 2
+2025-04-02 15:56:38,124 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:38,533 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:38,533 - __main__ - INFO - Attempt 4, Turn 3
+2025-04-02 15:56:38,934 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:38,934 - __main__ - INFO - Attempt 4, Turn 4
+2025-04-02 15:56:38,934 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:38,940 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:38,941 - __main__ - INFO - Attempt 4, Turn 5
+2025-04-02 15:56:39,391 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:39,392 - __main__ - INFO - Attempt 4, Turn 6
+2025-04-02 15:56:39,392 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:39,392 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:39,393 - __main__ - INFO - Attempt 4, Turn 7
+2025-04-02 15:56:39,787 - __main__ - INFO - Agent proposed action: 'place X at 2,3'
+2025-04-02 15:56:39,787 - __main__ - INFO - Attempt 4, Turn 8
+2025-04-02 15:56:39,787 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:39,787 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 3,2
+2025-04-02 15:56:39,787 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:39,788 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:39,788 - __main__ - INFO - --- Attempt 4 Finished (2.11s) ---
+2025-04-02 15:56:39,788 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:39,788 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:39,788 - __main__ - INFO - --- Starting Attempt 5 ---
+2025-04-02 15:56:39,788 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:39,788 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:39,788 - __main__ - INFO - Attempt 5, Turn 1
+2025-04-02 15:56:40,180 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:40,180 - __main__ - INFO - Attempt 5, Turn 2
+2025-04-02 15:56:40,180 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:40,625 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:40,625 - __main__ - INFO - Attempt 5, Turn 3
+2025-04-02 15:56:41,083 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:41,084 - __main__ - INFO - Attempt 5, Turn 4
+2025-04-02 15:56:41,084 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:41,089 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:41,090 - __main__ - INFO - Attempt 5, Turn 5
+2025-04-02 15:56:41,520 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:41,520 - __main__ - INFO - Attempt 5, Turn 6
+2025-04-02 15:56:41,536 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:41,536 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:41,537 - __main__ - INFO - Attempt 5, Turn 7
+2025-04-02 15:56:41,909 - __main__ - INFO - Agent proposed action: 'place X at 2,3'
+2025-04-02 15:56:41,909 - __main__ - INFO - Attempt 5, Turn 8
+2025-04-02 15:56:41,909 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:41,910 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 3,2
+2025-04-02 15:56:41,910 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:41,910 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:41,910 - __main__ - INFO - --- Attempt 5 Finished (2.12s) ---
+2025-04-02 15:56:41,910 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:41,910 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:41,910 - __main__ - INFO - --- Starting Attempt 6 ---
+2025-04-02 15:56:41,910 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:41,911 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:41,911 - __main__ - INFO - Attempt 6, Turn 1
+2025-04-02 15:56:42,299 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:42,299 - __main__ - INFO - Attempt 6, Turn 2
+2025-04-02 15:56:42,299 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:42,712 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:42,713 - __main__ - INFO - Attempt 6, Turn 3
+2025-04-02 15:56:43,148 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:43,148 - __main__ - INFO - Attempt 6, Turn 4
+2025-04-02 15:56:43,148 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:43,154 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:43,154 - __main__ - INFO - Attempt 6, Turn 5
+2025-04-02 15:56:43,543 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:43,543 - __main__ - INFO - Attempt 6, Turn 6
+2025-04-02 15:56:43,543 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:43,544 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:43,544 - __main__ - INFO - Attempt 6, Turn 7
+2025-04-02 15:56:43,944 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:43,944 - __main__ - INFO - Attempt 6, Turn 8
+2025-04-02 15:56:43,944 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:43,944 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:43,944 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:43,944 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:43,945 - __main__ - INFO - --- Attempt 6 Finished (2.03s) ---
+2025-04-02 15:56:43,945 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:43,945 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:43,945 - __main__ - INFO - --- Starting Attempt 7 ---
+2025-04-02 15:56:43,945 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:43,945 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:43,945 - __main__ - INFO - Attempt 7, Turn 1
+2025-04-02 15:56:44,406 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:44,406 - __main__ - INFO - Attempt 7, Turn 2
+2025-04-02 15:56:44,406 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:44,828 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:44,829 - __main__ - INFO - Attempt 7, Turn 3
+2025-04-02 15:56:45,194 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:45,194 - __main__ - INFO - Attempt 7, Turn 4
+2025-04-02 15:56:45,194 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:45,200 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:45,200 - __main__ - INFO - Attempt 7, Turn 5
+2025-04-02 15:56:45,535 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:45,536 - __main__ - INFO - Attempt 7, Turn 6
+2025-04-02 15:56:45,536 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:45,536 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:45,537 - __main__ - INFO - Attempt 7, Turn 7
+2025-04-02 15:56:45,895 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:45,895 - __main__ - INFO - Attempt 7, Turn 8
+2025-04-02 15:56:45,895 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:45,895 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:45,896 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:45,896 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:45,896 - __main__ - INFO - --- Attempt 7 Finished (1.95s) ---
+2025-04-02 15:56:45,896 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:45,896 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:45,896 - __main__ - INFO - --- Starting Attempt 8 ---
+2025-04-02 15:56:45,896 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:45,896 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:45,896 - __main__ - INFO - Attempt 8, Turn 1
+2025-04-02 15:56:46,326 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:46,326 - __main__ - INFO - Attempt 8, Turn 2
+2025-04-02 15:56:46,327 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:46,767 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:46,767 - __main__ - INFO - Attempt 8, Turn 3
+2025-04-02 15:56:47,125 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:47,125 - __main__ - INFO - Attempt 8, Turn 4
+2025-04-02 15:56:47,125 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:47,131 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:47,131 - __main__ - INFO - Attempt 8, Turn 5
+2025-04-02 15:56:47,555 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:47,555 - __main__ - INFO - Attempt 8, Turn 6
+2025-04-02 15:56:47,555 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:47,556 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:47,556 - __main__ - INFO - Attempt 8, Turn 7
+2025-04-02 15:56:47,925 - __main__ - INFO - Agent proposed action: 'place X at 2,3'
+2025-04-02 15:56:47,925 - __main__ - INFO - Attempt 8, Turn 8
+2025-04-02 15:56:47,926 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:47,926 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 3,2
+2025-04-02 15:56:47,926 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:47,926 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:47,926 - __main__ - INFO - --- Attempt 8 Finished (2.03s) ---
+2025-04-02 15:56:47,926 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:47,926 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:47,926 - __main__ - INFO - --- Starting Attempt 9 ---
+2025-04-02 15:56:47,926 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:47,927 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:47,927 - __main__ - INFO - Attempt 9, Turn 1
+2025-04-02 15:56:48,363 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:48,364 - __main__ - INFO - Attempt 9, Turn 2
+2025-04-02 15:56:48,364 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:48,773 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:48,773 - __main__ - INFO - Attempt 9, Turn 3
+2025-04-02 15:56:49,208 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:49,208 - __main__ - INFO - Attempt 9, Turn 4
+2025-04-02 15:56:49,208 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:49,215 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:49,215 - __main__ - INFO - Attempt 9, Turn 5
+2025-04-02 15:56:49,640 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:49,640 - __main__ - INFO - Attempt 9, Turn 6
+2025-04-02 15:56:49,640 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:49,640 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:49,641 - __main__ - INFO - Attempt 9, Turn 7
+2025-04-02 15:56:50,029 - __main__ - INFO - Agent proposed action: 'place X at 2,3'
+2025-04-02 15:56:50,030 - __main__ - INFO - Attempt 9, Turn 8
+2025-04-02 15:56:50,030 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:50,030 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 3,2
+2025-04-02 15:56:50,030 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:50,030 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:50,031 - __main__ - INFO - --- Attempt 9 Finished (2.10s) ---
+2025-04-02 15:56:50,031 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:50,031 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:50,031 - __main__ - INFO - --- Starting Attempt 10 ---
+2025-04-02 15:56:50,031 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:50,031 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:50,031 - __main__ - INFO - Attempt 10, Turn 1
+2025-04-02 15:56:50,395 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:50,396 - __main__ - INFO - Attempt 10, Turn 2
+2025-04-02 15:56:50,396 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:50,821 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:50,821 - __main__ - INFO - Attempt 10, Turn 3
+2025-04-02 15:56:51,191 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:51,192 - __main__ - INFO - Attempt 10, Turn 4
+2025-04-02 15:56:51,192 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:51,198 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:51,198 - __main__ - INFO - Attempt 10, Turn 5
+2025-04-02 15:56:51,592 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:51,592 - __main__ - INFO - Attempt 10, Turn 6
+2025-04-02 15:56:51,593 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:51,593 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:51,593 - __main__ - INFO - Attempt 10, Turn 7
+2025-04-02 15:56:51,963 - __main__ - INFO - Agent proposed action: 'place X at 2,3'
+2025-04-02 15:56:51,963 - __main__ - INFO - Attempt 10, Turn 8
+2025-04-02 15:56:51,964 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:51,964 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 3,2
+2025-04-02 15:56:51,964 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:51,964 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:51,964 - __main__ - INFO - --- Attempt 10 Finished (1.93s) ---
+2025-04-02 15:56:51,964 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:51,964 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:51,964 - __main__ - INFO - --- Starting Attempt 11 ---
+2025-04-02 15:56:51,965 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:51,965 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:51,965 - __main__ - INFO - Attempt 11, Turn 1
+2025-04-02 15:56:52,370 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:52,370 - __main__ - INFO - Attempt 11, Turn 2
+2025-04-02 15:56:52,370 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:52,790 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:52,790 - __main__ - INFO - Attempt 11, Turn 3
+2025-04-02 15:56:53,140 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:53,140 - __main__ - INFO - Attempt 11, Turn 4
+2025-04-02 15:56:53,140 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:53,147 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:53,147 - __main__ - INFO - Attempt 11, Turn 5
+2025-04-02 15:56:53,513 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:53,513 - __main__ - INFO - Attempt 11, Turn 6
+2025-04-02 15:56:53,514 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:53,514 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:53,514 - __main__ - INFO - Attempt 11, Turn 7
+2025-04-02 15:56:53,904 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:53,904 - __main__ - INFO - Attempt 11, Turn 8
+2025-04-02 15:56:53,904 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:53,904 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:53,904 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:53,905 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:53,905 - __main__ - INFO - --- Attempt 11 Finished (1.94s) ---
+2025-04-02 15:56:53,905 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:53,905 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:53,906 - __main__ - INFO - --- Starting Attempt 12 ---
+2025-04-02 15:56:53,906 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:53,906 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:53,906 - __main__ - INFO - Attempt 12, Turn 1
+2025-04-02 15:56:54,266 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:54,267 - __main__ - INFO - Attempt 12, Turn 2
+2025-04-02 15:56:54,267 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:54,678 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:54,679 - __main__ - INFO - Attempt 12, Turn 3
+2025-04-02 15:56:55,078 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:55,078 - __main__ - INFO - Attempt 12, Turn 4
+2025-04-02 15:56:55,079 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:55,084 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:55,085 - __main__ - INFO - Attempt 12, Turn 5
+2025-04-02 15:56:55,452 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:55,453 - __main__ - INFO - Attempt 12, Turn 6
+2025-04-02 15:56:55,453 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:55,453 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:55,453 - __main__ - INFO - Attempt 12, Turn 7
+2025-04-02 15:56:55,855 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:55,855 - __main__ - INFO - Attempt 12, Turn 8
+2025-04-02 15:56:55,855 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:55,856 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:55,856 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:55,856 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:55,856 - __main__ - INFO - --- Attempt 12 Finished (1.95s) ---
+2025-04-02 15:56:55,856 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:55,856 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:55,856 - __main__ - INFO - --- Starting Attempt 13 ---
+2025-04-02 15:56:55,857 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:55,857 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:55,857 - __main__ - INFO - Attempt 13, Turn 1
+2025-04-02 15:56:56,238 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:56,238 - __main__ - INFO - Attempt 13, Turn 2
+2025-04-02 15:56:56,238 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:56,648 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:56,648 - __main__ - INFO - Attempt 13, Turn 3
+2025-04-02 15:56:57,023 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:57,024 - __main__ - INFO - Attempt 13, Turn 4
+2025-04-02 15:56:57,024 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:57,030 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:57,031 - __main__ - INFO - Attempt 13, Turn 5
+2025-04-02 15:56:57,398 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:57,398 - __main__ - INFO - Attempt 13, Turn 6
+2025-04-02 15:56:57,399 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:57,399 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:57,399 - __main__ - INFO - Attempt 13, Turn 7
+2025-04-02 15:56:57,779 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:57,779 - __main__ - INFO - Attempt 13, Turn 8
+2025-04-02 15:56:57,779 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:57,779 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:57,780 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:57,780 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:57,780 - __main__ - INFO - --- Attempt 13 Finished (1.92s) ---
+2025-04-02 15:56:57,780 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:57,780 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:57,780 - __main__ - INFO - --- Starting Attempt 14 ---
+2025-04-02 15:56:57,780 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:57,780 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:57,780 - __main__ - INFO - Attempt 14, Turn 1
+2025-04-02 15:56:58,170 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:56:58,171 - __main__ - INFO - Attempt 14, Turn 2
+2025-04-02 15:56:58,171 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:58,578 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:56:58,579 - __main__ - INFO - Attempt 14, Turn 3
+2025-04-02 15:56:58,974 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:56:58,974 - __main__ - INFO - Attempt 14, Turn 4
+2025-04-02 15:56:58,974 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:58,980 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:56:58,980 - __main__ - INFO - Attempt 14, Turn 5
+2025-04-02 15:56:59,393 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:56:59,393 - __main__ - INFO - Attempt 14, Turn 6
+2025-04-02 15:56:59,393 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:59,393 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:56:59,393 - __main__ - INFO - Attempt 14, Turn 7
+2025-04-02 15:56:59,777 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:56:59,777 - __main__ - INFO - Attempt 14, Turn 8
+2025-04-02 15:56:59,777 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:56:59,777 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:56:59,777 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:56:59,778 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:56:59,778 - __main__ - INFO - --- Attempt 14 Finished (2.00s) ---
+2025-04-02 15:56:59,778 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:56:59,778 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:56:59,778 - __main__ - INFO - --- Starting Attempt 15 ---
+2025-04-02 15:56:59,778 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:56:59,778 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:56:59,778 - __main__ - INFO - Attempt 15, Turn 1
+2025-04-02 15:57:00,210 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:57:00,210 - __main__ - INFO - Attempt 15, Turn 2
+2025-04-02 15:57:00,210 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:00,629 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:57:00,629 - __main__ - INFO - Attempt 15, Turn 3
+2025-04-02 15:57:01,039 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:57:01,039 - __main__ - INFO - Attempt 15, Turn 4
+2025-04-02 15:57:01,039 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:01,045 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:57:01,045 - __main__ - INFO - Attempt 15, Turn 5
+2025-04-02 15:57:01,479 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:57:01,480 - __main__ - INFO - Attempt 15, Turn 6
+2025-04-02 15:57:01,480 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:01,480 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:57:01,480 - __main__ - INFO - Attempt 15, Turn 7
+2025-04-02 15:57:01,913 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:57:01,914 - __main__ - INFO - Attempt 15, Turn 8
+2025-04-02 15:57:01,914 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:01,914 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:57:01,914 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:57:01,914 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:57:01,914 - __main__ - INFO - --- Attempt 15 Finished (2.14s) ---
+2025-04-02 15:57:01,914 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:57:01,915 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:57:01,915 - __main__ - INFO - --- Starting Attempt 16 ---
+2025-04-02 15:57:01,915 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:57:01,915 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:57:01,915 - __main__ - INFO - Attempt 16, Turn 1
+2025-04-02 15:57:02,334 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:57:02,334 - __main__ - INFO - Attempt 16, Turn 2
+2025-04-02 15:57:02,334 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:02,742 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:57:02,742 - __main__ - INFO - Attempt 16, Turn 3
+2025-04-02 15:57:03,215 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:57:03,216 - __main__ - INFO - Attempt 16, Turn 4
+2025-04-02 15:57:03,216 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:03,222 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:57:03,222 - __main__ - INFO - Attempt 16, Turn 5
+2025-04-02 15:57:03,652 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:57:03,653 - __main__ - INFO - Attempt 16, Turn 6
+2025-04-02 15:57:03,653 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:03,653 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:57:03,653 - __main__ - INFO - Attempt 16, Turn 7
+2025-04-02 15:57:04,132 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:57:04,132 - __main__ - INFO - Attempt 16, Turn 8
+2025-04-02 15:57:04,133 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:04,133 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:57:04,133 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:57:04,133 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:57:04,133 - __main__ - INFO - --- Attempt 16 Finished (2.22s) ---
+2025-04-02 15:57:04,133 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:57:04,134 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:57:04,134 - __main__ - INFO - --- Starting Attempt 17 ---
+2025-04-02 15:57:04,134 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:57:04,134 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:57:04,134 - __main__ - INFO - Attempt 17, Turn 1
+2025-04-02 15:57:04,493 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:57:04,493 - __main__ - INFO - Attempt 17, Turn 2
+2025-04-02 15:57:04,494 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:04,930 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:57:04,930 - __main__ - INFO - Attempt 17, Turn 3
+2025-04-02 15:57:05,619 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:57:05,619 - __main__ - INFO - Attempt 17, Turn 4
+2025-04-02 15:57:05,619 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:05,626 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:57:05,626 - __main__ - INFO - Attempt 17, Turn 5
+2025-04-02 15:57:06,015 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:57:06,016 - __main__ - INFO - Attempt 17, Turn 6
+2025-04-02 15:57:06,016 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:06,016 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:57:06,017 - __main__ - INFO - Attempt 17, Turn 7
+2025-04-02 15:57:06,376 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:57:06,376 - __main__ - INFO - Attempt 17, Turn 8
+2025-04-02 15:57:06,376 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:06,377 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:57:06,377 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:57:06,377 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:57:06,377 - __main__ - INFO - --- Attempt 17 Finished (2.24s) ---
+2025-04-02 15:57:06,377 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:57:06,377 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:57:06,377 - __main__ - INFO - --- Starting Attempt 18 ---
+2025-04-02 15:57:06,377 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:57:06,377 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:57:06,378 - __main__ - INFO - Attempt 18, Turn 1
+2025-04-02 15:57:06,759 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:57:06,759 - __main__ - INFO - Attempt 18, Turn 2
+2025-04-02 15:57:06,760 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:07,192 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:57:07,193 - __main__ - INFO - Attempt 18, Turn 3
+2025-04-02 15:57:07,583 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:57:07,583 - __main__ - INFO - Attempt 18, Turn 4
+2025-04-02 15:57:07,584 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:07,590 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:57:07,590 - __main__ - INFO - Attempt 18, Turn 5
+2025-04-02 15:57:07,981 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:57:07,981 - __main__ - INFO - Attempt 18, Turn 6
+2025-04-02 15:57:07,982 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:07,982 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:57:07,982 - __main__ - INFO - Attempt 18, Turn 7
+2025-04-02 15:57:08,381 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:57:08,381 - __main__ - INFO - Attempt 18, Turn 8
+2025-04-02 15:57:08,382 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:08,382 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:57:08,382 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:57:08,382 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:57:08,382 - __main__ - INFO - --- Attempt 18 Finished (2.00s) ---
+2025-04-02 15:57:08,382 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:57:08,382 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:57:08,383 - __main__ - INFO - --- Starting Attempt 19 ---
+2025-04-02 15:57:08,383 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:57:08,383 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:57:08,383 - __main__ - INFO - Attempt 19, Turn 1
+2025-04-02 15:57:08,777 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:57:08,778 - __main__ - INFO - Attempt 19, Turn 2
+2025-04-02 15:57:08,778 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:09,185 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:57:09,187 - __main__ - INFO - Attempt 19, Turn 3
+2025-04-02 15:57:09,580 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:57:09,580 - __main__ - INFO - Attempt 19, Turn 4
+2025-04-02 15:57:09,580 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:09,587 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:57:09,587 - __main__ - INFO - Attempt 19, Turn 5
+2025-04-02 15:57:09,965 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:57:09,965 - __main__ - INFO - Attempt 19, Turn 6
+2025-04-02 15:57:09,965 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:09,966 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:57:09,966 - __main__ - INFO - Attempt 19, Turn 7
+2025-04-02 15:57:10,425 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:57:10,425 - __main__ - INFO - Attempt 19, Turn 8
+2025-04-02 15:57:10,425 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:10,425 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:57:10,425 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:57:10,425 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:57:10,425 - __main__ - INFO - --- Attempt 19 Finished (2.04s) ---
+2025-04-02 15:57:10,425 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:57:10,426 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:57:10,426 - __main__ - INFO - --- Starting Attempt 20 ---
+2025-04-02 15:57:10,426 - environments.tic_tac_toe_env - INFO - Tic Tac Toe Environment Reset. Agent ('X') starts vs Optimal Opponent ('O').
+2025-04-02 15:57:10,426 - __main__ - INFO - Task is TicTacToe, --steps ignored. Running until game conclusion.
+2025-04-02 15:57:10,426 - __main__ - INFO - Attempt 20, Turn 1
+2025-04-02 15:57:10,836 - __main__ - INFO - Agent proposed action: 'place X at 1,1'
+2025-04-02 15:57:10,836 - __main__ - INFO - Attempt 20, Turn 2
+2025-04-02 15:57:10,836 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:11,242 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,2
+2025-04-02 15:57:11,242 - __main__ - INFO - Attempt 20, Turn 3
+2025-04-02 15:57:11,663 - __main__ - INFO - Agent proposed action: 'place X at 1,3'
+2025-04-02 15:57:11,664 - __main__ - INFO - Attempt 20, Turn 4
+2025-04-02 15:57:11,664 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:11,670 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 1,2
+2025-04-02 15:57:11,670 - __main__ - INFO - Attempt 20, Turn 5
+2025-04-02 15:57:12,046 - __main__ - INFO - Agent proposed action: 'place X at 3,1'
+2025-04-02 15:57:12,047 - __main__ - INFO - Attempt 20, Turn 6
+2025-04-02 15:57:12,047 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:12,047 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,1
+2025-04-02 15:57:12,047 - __main__ - INFO - Attempt 20, Turn 7
+2025-04-02 15:57:12,484 - __main__ - INFO - Agent proposed action: 'place X at 3,2'
+2025-04-02 15:57:12,484 - __main__ - INFO - Attempt 20, Turn 8
+2025-04-02 15:57:12,484 - __main__ - INFO - Opponent's turn (scripted).
+2025-04-02 15:57:12,484 - environments.tic_tac_toe_env - INFO - Opponent (O) chose optimal move: place O at 2,3
+2025-04-02 15:57:12,485 - environments.tic_tac_toe_env - INFO - Game is terminal. Winner: O, Draw: False
+2025-04-02 15:57:12,485 - __main__ - INFO - Environment reached terminal state (Win/Draw).
+2025-04-02 15:57:12,485 - __main__ - INFO - --- Attempt 20 Finished (2.06s) ---
+2025-04-02 15:57:12,485 - __main__ - INFO - Performing deterministic evaluation for TicTacToe.
+2025-04-02 15:57:12,485 - __main__ - INFO - Deterministic Score: 1 (Opponent 'O' Won)
+2025-04-02 15:57:12,485 - reporting - INFO - Metrics calculated: Success=0, Partial=0, Failed=20, Regressions=0
+2025-04-02 15:57:12,486 - __main__ - INFO - Benchmark Run Finished.
+2025-04-02 15:57:12,486 - __main__ - INFO - Final Report:
+--- ToyBench Report ---
+Task          : tic_tac_toe
+Provider      : gemini
+Model         : gemini-2.0-flash
+Turn Horizon  : 10
+Attempts Run  : 20 / 20
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 20
+Failed (Error)    : 0
+Total Failed      : 20
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Success Rate (Any): 0.00%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
+2025-04-02 15:57:12,504 - reporting - INFO - Results saved to: results\tic_tac_toe_gemini_gemini-2.0-flash_20250402_155631

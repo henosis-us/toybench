@@ -1,0 +1,17 @@
+--- ToyBench Report ---
+Task          : tic_tac_toe
+Provider      : gemini
+Model         : gemini-2.0-flash
+Turn Horizon  : 10
+Attempts Run  : 20 / 20
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 20
+Failed (Error)    : 0
+Total Failed      : 20
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Success Rate (Any): 0.00%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---

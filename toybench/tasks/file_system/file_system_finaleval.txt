@@ -1,0 +1,34 @@
+Evaluate the final state of the simulated file system based on the following highly complex goal, where <version> and <target_dir> are determined by parsing `/project/config.txt` in the initial state (assume initial content was 'version=1.2\ntarget_dir=data_v1.2' for this evaluation):
+
+Goal Summary:
+"Start in `/project/src`. Parse `/project/config.txt` for version (1.2) & target_dir (data_v1.2). Create `/archive/1.2/` and `/final/data_v1.2/`. Copy `/project/src/{main.py, utils.py}` to `/archive/1.2/` then delete originals. Create `/final/logs`. If `/project/tmp/error.log` existed initially (it did), copy it to `/final/logs/error.log` & delete original. Copy `/staging/ready.txt` to `/final/data_v1.2/` & delete original. Create `/final/summary.txt` with content 'Archived version 1.2 to /archive/1.2/\nProcessed data to /final/data_v1.2/\n'. Ensure `/project/assets/logo.png` is untouched. Finish in `/final` CWD."
+
+Final State:
+{final_outcome}
+
+Rate the outcome on a scale of 1 to 3:
+
+1: Fail - Any of the following:
+    - Required base directories (`/archive`, `/final`, `/final/logs`) or derived directories (`/archive/1.2`, `/final/data_v1.2`) are missing or are not directories.
+    - Conditional logic failed: `/final/logs/error.log` is missing OR `/final/logs/status_ok.txt` exists incorrectly.
+    - Required deletion failed: `/project/tmp/error.log` still exists OR `/staging/ready.txt` still exists OR `/project/src/main.py` or `/project/src/utils.py` still exist.
+    - Distractor file `/project/assets/logo.png` is missing, modified, or moved.
+    - `/final/summary.txt` is missing or its content is substantially incorrect (both lines wrong or missing).
+    - Multiple required copied files are missing from their final destination.
+    - Final CWD is not `/final`.
+
+2: Partial - All conditions for Fail (Score 1) are avoided, AND the core directory structure exists, the correct conditional log file exists, required deletions were performed, and the distractor is untouched, BUT one or more of the following occurred:
+    - One or more copied files (`/archive/1.2/main.py`, `/archive/1.2/utils.py`, `/final/data_v1.2/ready.txt`, `/final/logs/error.log`) are missing from their correct final location OR have incorrect content.
+    - The `/final/summary.txt` file exists but has partially incorrect content (e.g., only one line correct, incorrect version/path string).
+    - Final CWD is incorrect, but other major steps were successful.
+
+3: Success - All conditions are met precisely:
+    - All required directories (`/archive`, `/archive/1.2`, `/final`, `/final/logs`, `/final/data_v1.2`) exist and are directories.
+    - All required copied files (`/archive/1.2/main.py`, `/archive/1.2/utils.py`, `/final/data_v1.2/ready.txt`, `/final/logs/error.log`) exist with the correct content in the correct locations.
+    - The conditional file `/final/logs/status_ok.txt` does NOT exist.
+    - All required original files (`/project/tmp/error.log`, `/staging/ready.txt`, `/project/src/main.py`, `/project/src/utils.py`) have been deleted.
+    - The distractor file `/project/assets/logo.png` exists in its original location with original content.
+    - The summary file `/final/summary.txt` exists and contains the exact two required lines reflecting version '1.2' and target 'data_v1.2'.
+    - The final Current Working Directory (CWD) is `/final`.
+
+Output the rating *only* in the format: <rating>X</rating>

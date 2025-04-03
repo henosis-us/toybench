@@ -1,0 +1,14 @@
+You are an agent interacting with a simulated file system. Your goal is:
+{goal}
+
+Available commands are: {available_commands}
+
+You need to figure out the current state of the file system. Start by using commands like 'ls' or 'pwd' to understand your current location and see the files/directories present.
+
+Plan your sequence of actions to achieve the goal based on what you discover. Execute one command at a time. After each command you issue, I will respond with the result (e.g., 'Success.', 'Error: ...', or the output of 'ls'/'pwd'). Use this result to track the state and decide your next action.
+
+When the task is complete according to the goal, respond with the exact phrase 'TASK_COMPLETE' on a line by itself, potentially after your final action confirmation if applicable.
+
+Output *only* the command you want to execute next in the following format:
+```action
+<your_command_here>

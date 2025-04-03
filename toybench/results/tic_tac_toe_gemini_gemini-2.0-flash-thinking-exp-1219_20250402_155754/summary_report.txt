@@ -1,0 +1,17 @@
+--- ToyBench Report ---
+Task          : tic_tac_toe
+Provider      : gemini
+Model         : gemini-2.0-flash-thinking-exp-1219
+Turn Horizon  : 10
+Attempts Run  : 20 / 20
+-------------------------
+Success (Score 3) : 7
+Partial (Score 2) : 4
+Failed (Score 1)  : 8
+Failed (Error)    : 1
+Total Failed      : 9
+-------------------------
+Pass Rate (Pass@1): 35.00%
+Success Rate (Any): 100.00%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---

@@ -1,0 +1,12 @@
+{
+    "task": "tic_tac_toe",
+    "provider": "gemini",
+    "model": null,
+    "attempts": 20,
+    "steps": 10,
+    "evaluator_model": null,
+    "log_level": "INFO",
+    "output_dir": "results",
+    "agent_model_used": "gemini-2.0-flash-thinking-exp-1219",
+    "evaluator_model_used": "gemini-1.5-flash-8b"
+}

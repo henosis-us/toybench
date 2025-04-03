@@ -1,0 +1,1 @@
+Win the game of Tic-Tac-Toe as player X.

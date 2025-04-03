@@ -1,0 +1,12 @@
+You are playing Tic-Tac-Toe. Your goal is: {goal}
+It is your turn.
+
+Current Board State:
+{current_state}
+
+{last_invalid_action_feedback}
+Based on the board and your goal, what is your next move?
+Output your move *only* in the format: `place <X or O> at <row>,<col>` (using 1-based indexing for row and column, e.g., `place X at 1,1` for top-left). You are Player {current_player}.
+
+```action
+<your_move_here>

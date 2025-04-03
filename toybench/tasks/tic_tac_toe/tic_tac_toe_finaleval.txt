@@ -1,0 +1,11 @@
+Evaluate the final outcome of the Tic-Tac-Toe game. The goal for the agent (Player X) was: "Win the game as player X."
+
+Final Game State:
+{final_outcome}
+
+Rate the outcome based on the goal for Player X:
+1: Fail - Player O won, or the game ended due to three consecutive invalid moves by X.
+2: Partial - Player X won or tied but made invalid moves, OR Player X lost the game but made no invalid moves
+3. Success - Player X won the game or tied
+
+Output the rating *only* in the format: <rating>eval score here</rating>

@@ -1,0 +1,17 @@
+--- ToyBench Report ---
+Task          : file_system
+Provider      : gemini
+Model         : gemini-2.0-flash
+Turn Horizon  : 10
+Attempts Run  : 20 / 20
+-------------------------
+Success (Score 3) : 17
+Partial (Score 2) : 2
+Failed (Score 1)  : 0
+Failed (Error)    : 1
+Total Failed      : 1
+-------------------------
+Pass Rate (Pass@1): 85.00%
+Success Rate (Any): 100.00%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
