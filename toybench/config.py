@@ -12,7 +12,7 @@ def load_config():
         'gemini_api_key': os.getenv('GOOGLE_API_KEY'),
         # Add placeholders for other providers later
         # 'openai_api_key': os.getenv('OPENAI_API_KEY'),
-        'default_gemini_model': 'gemini-2.5-pro-exp-03-25', # Or your preferred default # 'gemini-2.5-pro-exp-03-25'
+        'default_gemini_model': 'gemini-2.0-flash', # Or your preferred default # 'gemini-2.5-pro-exp-03-25'
         'evaluator_model': 'gemini-1.5-flash-8b', # Default evaluator model
         'task_definitions_dir': 'tasks' # Directory containing task prompts
     }

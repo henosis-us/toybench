@@ -88,44 +88,35 @@ def parse_agent_response(response_text: str) -> tuple[str | None, bool]:
     task_complete = "TASK_COMPLETE" in response_text.upper()
 
     # 2. Look for ```action block
-    # Action block might contain the signal itself, remove it for command parsing if present
-    clean_response_for_action = response_text # Check original for signal later
-    if "```action" in response_text:
-        action_match = re.search(r"```action\n(.*?)\n```", response_text, re.DOTALL | re.IGNORECASE)
-        if action_match:
-            command = action_match.group(1).strip()
-            logger.debug(f"Parsed command (block): '{command}'")
-            # If the block *only* contains TASK_COMPLETE, treat it as signal only, no command
-            if "TASK_COMPLETE" in command.upper() and command.upper() == "TASK_COMPLETE":
-                 logger.debug("Action block contains only TASK_COMPLETE signal.")
-                 return None, task_complete # Signal found, no separate command
-            # Return the command found within the block
-            return command, task_complete
-        else:
-             # Malformed block? Log warning but proceed to check other lines
-             logger.warning(f"Found '```action' but could not parse block structure in response: {response_text[:150]}...")
+    action_match = re.search(r"```action\n(.*?)\n```", response_text, re.DOTALL | re.IGNORECASE)
+    if action_match:
+        command = action_match.group(1).strip()
+        logger.debug(f"Parsed command (block): '{command}'")
+        # If the block *only* contains TASK_COMPLETE, treat it as signal only, no command
+        if "TASK_COMPLETE" in command.upper() and len(command.split()) == 1:
+             logger.debug("Action block contains only TASK_COMPLETE signal.")
+             return None, task_complete # Signal found, no separate command
+        return command, task_complete # Command found in block, signal possibly elsewhere
 
     # 3. Fallback: Check lines for likely commands or just the signal
     lines = [line.strip() for line in response_text.strip().splitlines() if line.strip()]
     if lines:
         first_line = lines[0]
         # Treat TASK_COMPLETE on its own line as signal only
-        if "TASK_COMPLETE" in first_line.upper() and first_line.upper() == "TASK_COMPLETE":
+        if "TASK_COMPLETE" in first_line.upper() and len(first_line.split()) == 1:
             logger.debug("Parsed signal (TASK_COMPLETE line).")
+            # If there are other lines, one might be a command - this simplistic check doesn't handle that well.
+            # Assume for now: if first line is *just* TASK_COMPLETE, it's primarily a signal.
+            # We already checked for the signal anywhere, so task_complete is set.
+            # Could potentially check lines[1] here if needed.
             return None, task_complete
 
         # Check if first line looks like a known command (heuristic)
-        # Ensure this check doesn't accidentally pick up the action block prefix itself
-        common_cmds = ["ls", "cd", "pwd", "mkdir", "cat", "cp", "rm", "echo"] # Add other task cmds if needed
+        common_cmds = ["ls", "cd", "mkdir", "touch", "rm", "pwd", "mv", "place"] # Add other task cmds if needed
         first_word = first_line.split(maxsplit=1)[0].lower() if first_line else ""
-        if first_word in common_cmds and not first_line.lower().startswith("```action"):
+        if first_word in common_cmds:
             logger.debug(f"Parsed command (first line heuristic): '{first_line}'")
             return first_line, task_complete
-        elif first_line.lower().startswith("```action"):
-             # Agent incorrectly included the prefix in the first line outside a proper block
-             logger.warning(f"Agent incorrectly included '```action' prefix in response: '{first_line}'")
-             # Return the line BUT let the caller handle this as a specific failure
-             return first_line, task_complete
 
     # 4. No command found, return signal status only
     logger.debug(f"No command parsed from response. Signal status: {task_complete}. Response: {response_text[:100]}...")
@@ -150,59 +141,75 @@ def run_attempt(attempt_id: int, env: BaseEnvironment, agent: LLMInterface, eval
     turn_count = 0
     is_ttt = isinstance(env, TicTacToeEnv); is_fs = isinstance(env, FileSystemEnv)
 
-    # File System Specific Settings
-    FS_MAX_TURNS = 50
-
     # Determine if max_steps should be ignored (tasks that run until natural completion)
-    ignore_steps = is_ttt or is_fs # FS has its own turn limit now
-    if is_fs: logger.info(f"Task '{task_name}' runs until completion/error or FS_MAX_TURNS ({FS_MAX_TURNS}).")
-    elif is_ttt: logger.info(f"Task '{task_name}' runs until completion/error, --steps ({max_steps}) ignored.")
+    ignore_steps = is_ttt or is_fs # Add other tasks here if they have defined end states
+    if ignore_steps: logger.info(f"Task '{task_name}' runs until completion/error, --steps ({max_steps}) ignored.")
     else: logger.info(f"Task '{task_name}' runs for max {max_steps} steps.")
 
 
     # --- Construct Initial Prompt & History ---
     initial_prompt = ""
     if is_fs:
+        # **MODIFICATION**: Do not include initial_state in the first prompt for FS.
+        # The new generate template encourages exploration.
         try:
+            # Get available commands from env context (even after reset)
             fs_context = env.get_prompt_context()
-            available_commands = fs_context.get("available_commands", "ls, cd, pwd, mkdir, cat, cp, rm, echo > (overwrite), echo >> (append)") # Fallback
+            available_commands = fs_context.get("available_commands", "ls, cd, mkdir, touch, rm, pwd, mv") # Default fallback
             initial_prompt = prompts['generate_template'].format(
                 goal=env.get_goal(),
                 available_commands=available_commands
+                # **REMOVED**: initial_state=initial_state_desc
             )
+            # Ensure the template didn't accidentally require initial_state
             if "{initial_state}" in initial_prompt:
-                 logger.warning("Detected {{initial_state}} in FS prompt, should be removed for agentic discovery.")
+                 logger.warning("Detected {{initial_state}} in FS prompt, but it should be removed for agentic discovery.")
+                 # Attempt to remove it if found, though template file should be fixed
                  initial_prompt = initial_prompt.replace("{initial_state}", "(Figure out the initial state using commands like 'ls')")
 
             logger.debug(f"Initial FS Prompt (State Hidden):\n{initial_prompt}")
+            # Initialize conversation history for FS
             conversation_history.append({'role': 'user', 'parts': [initial_prompt]})
-        except KeyError as e: logger.error(f"FS Initial Prompt key error: {e}.", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Init prompt key error: {e}"
-        except Exception as e: logger.error(f"Error formatting FS initial prompt: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Init prompt format error: {e}"
+        except KeyError as e:
+            logger.error(f"FS Initial Prompt key error: {e}. Check generate template.", exc_info=True)
+            attempt_failed_prematurely = True; failure_reason = f"Init prompt key error: {e}"
+        except Exception as e:
+            logger.error(f"Error formatting FS initial prompt: {e}", exc_info=True)
+            attempt_failed_prematurely = True; failure_reason = f"Init prompt format error: {e}"
     elif is_ttt:
+        # TTT requires the initial board state
         try:
+            # Get initial context after reset
             ttt_context = env.get_prompt_context()
+            # Add placeholder for feedback if needed by template
             if 'last_invalid_action_feedback' not in ttt_context: ttt_context['last_invalid_action_feedback'] = ""
             initial_prompt = prompts['generate_template'].format(**ttt_context)
             logger.debug(f"Initial TTT Prompt:\n{initial_prompt}")
-        except KeyError as e: logger.error(f"TTT Initial Prompt key error: {e}.", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Init prompt key error: {e}"
-        except Exception as e: logger.error(f"Error formatting TTT initial prompt: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Init prompt format error: {e}"
-    else: # Generic tasks
+            # TTT likely uses non-conversational generate_action, history not used directly by LLM call
+        except KeyError as e:
+            logger.error(f"TTT Initial Prompt key error: {e}. Check generate template.", exc_info=True)
+            attempt_failed_prematurely = True; failure_reason = f"Init prompt key error: {e}"
+        except Exception as e:
+            logger.error(f"Error formatting TTT initial prompt: {e}", exc_info=True)
+            attempt_failed_prematurely = True; failure_reason = f"Init prompt format error: {e}"
+    else:
+        # Generic tasks - Assume they need initial state unless specified otherwise
         try:
-            generic_context = env.get_prompt_context()
+            generic_context = env.get_prompt_context() # Get state after reset
             initial_prompt = prompts['generate_template'].format(**generic_context)
             logger.debug(f"Initial Generic Task Prompt:\n{initial_prompt}")
-        except KeyError as e: logger.error(f"Generic Initial Prompt key error: {e}.", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Init prompt key error: {e}"
-        except Exception as e: logger.error(f"Error formatting Generic initial prompt: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Init prompt format error: {e}"
+            # Generic tasks likely use non-conversational generate_action
+        except KeyError as e:
+            logger.error(f"Generic Initial Prompt key error: {e}. Check template.", exc_info=True)
+            attempt_failed_prematurely = True; failure_reason = f"Init prompt key error: {e}"
+        except Exception as e:
+            logger.error(f"Error formatting Generic initial prompt: {e}", exc_info=True)
+            attempt_failed_prematurely = True; failure_reason = f"Init prompt format error: {e}"
 
     # --- Main Interaction Loop ---
     while not attempt_failed_prematurely: # Exit loop if init failed
-        # --- Check Step/Turn Limits ---
-        if is_fs and turn_count >= FS_MAX_TURNS:
-             logger.warning(f"Reached max turns ({FS_MAX_TURNS}) for FileSystem task. Failing attempt (agent potentially lost).")
-             failure_reason = f"Reached FS max turns ({FS_MAX_TURNS})"
-             attempt_failed_prematurely = True
-             break # Exit loop
-        elif not ignore_steps and turn_count >= max_steps: # Check general max_steps if not ignored
+        # --- Check max_steps ONLY if NOT ignored ---
+        if not ignore_steps and turn_count >= max_steps:
             logger.warning(f"Reached max_steps ({max_steps}) for task '{task_name}'. Terminating attempt.")
             failure_reason = f"Reached max_steps ({max_steps})"
             attempt_failed_prematurely = True # Treat reaching max steps as a failure for scoring
@@ -210,131 +217,128 @@ def run_attempt(attempt_id: int, env: BaseEnvironment, agent: LLMInterface, eval
 
         current_turn_number = turn_count + 1
         turn_log_msg = f"Attempt {attempt_id + 1}, Turn {current_turn_number}"
-        if is_fs: turn_log_msg += f"/{FS_MAX_TURNS}"
-        elif not ignore_steps: turn_log_msg += f"/{max_steps}"
+        if not ignore_steps: turn_log_msg += f"/{max_steps}"
         logger.info(turn_log_msg)
 
         is_terminal_this_turn = False; action_taken_this_turn = "N/A"; action_valid_this_turn = False; step_error_this_turn = None
         turn_player = "N/A"; new_state_desc_this_turn = "N/A"; env_result_string = "" # Specific to FS conversation
 
         # Get necessary context BEFORE the turn logic
-        prompt_context_before_action = env.get_prompt_context()
-        state_before_action = prompt_context_before_action.get('current_state', 'State Unavailable')
+        prompt_context_before_action = env.get_prompt_context() # Get current context dict
+        state_before_action = prompt_context_before_action.get('current_state', 'State Unavailable') # Extract state string for logging/history
         new_state_desc_this_turn = state_before_action # Default if turn fails early
 
-        # Determine whose turn (relevant for TTT)
+        # --- Determine whose turn (relevant for TTT) ---
         is_agent_turn = True; current_env_player = None
         if hasattr(env, 'current_player') and agent_player_mark is not None:
-             current_env_player = getattr(env, 'current_player', agent_player_mark)
+             current_env_player = getattr(env, 'current_player', agent_player_mark) # Get current player from env
              is_agent_turn = (current_env_player == agent_player_mark)
              turn_player = current_env_player
-        else: turn_player = "Agent"
+        else: turn_player = "Agent" # Default for non-player tasks
 
         logger.debug(f"Turn {current_turn_number}: Player = {turn_player} (Is Agent Turn = {is_agent_turn})")
 
         # ============================ FS Turn (Conversational) ============================
         if is_fs:
-            if not is_agent_turn: logger.error("Logic Error: FS non-agent turn?"); attempt_failed_prematurely = True; failure_reason = "Internal Logic Error: FS non-agent turn"; break
-            turn_player = "Agent"
+            if not is_agent_turn: # Should always be agent turn for FS
+                 logger.error("Logic Error: FileSystem environment had non-agent turn?")
+                 attempt_failed_prematurely = True; failure_reason = "Internal Logic Error: FS non-agent turn"; break
 
+            turn_player = "Agent"
+            # Agent generates action based on conversation history
+            # Note: conversation_history contains the initial prompt asking agent to explore
             llm_response_text = agent.generate_action_conversational(conversation_history)
 
             if llm_response_text is None:
-                logger.error(f"FS Agent failed response (API Error?). Failing.")
-                attempt_failed_prematurely = True; failure_reason = "Agent LLM failed to respond"; is_terminal_this_turn = True
-                action_taken_this_turn = 'AGENT_API_ERROR'; env_result_string = "Error: Agent LLM failed to respond."
+                logger.error(f"FS Agent failed to generate response (API Error?). Failing attempt.")
+                attempt_failed_prematurely = True; failure_reason = "Agent LLM failed to respond"
+                is_terminal_this_turn = True # Treat API failure as terminal for the loop
+                action_taken_this_turn = 'AGENT_API_ERROR'
+                env_result_string = "Error: Agent LLM failed to respond." # For history log
             else:
                 logger.debug(f"Raw FS Response:\n{llm_response_text}")
-                conversation_history.append({'role': 'model', 'parts': [llm_response_text]})
+                conversation_history.append({'role': 'model', 'parts': [llm_response_text]}) # Add agent response to history
 
+                # Parse command AND completion signal from response
                 command, agent_signaled_completion = parse_agent_response(llm_response_text)
                 action_taken_this_turn = command if command else ("(Completion Signal)" if agent_signaled_completion else "(No Action Parsed)")
-                action_valid_this_turn = False # Assume invalid
+                action_valid_this_turn = False # Assume invalid until successful step or valid completion signal
 
-                # --- NEW: Check for incorrect formatting (```action prefix in command) ---
-                if command and command.strip().startswith("```action"):
-                    logger.error(f"FS Agent failed: Included '```action' prefix in the command itself: '{command}'. Failing attempt.")
-                    attempt_failed_prematurely = True; failure_reason = "Agent included ```action prefix in command"
-                    is_terminal_this_turn = True; step_error_this_turn = failure_reason; action_valid_this_turn = False
-                    # Skip further processing for this turn
-                else:
-                    # --- Regular processing ---
-                    if agent_signaled_completion:
-                        logger.info("Agent signaled TASK_COMPLETE.")
-                        is_terminal_this_turn = True
-                        action_valid_this_turn = True # Signaling completion is valid
+                if agent_signaled_completion:
+                    logger.info("Agent signaled TASK_COMPLETE.")
+                    is_terminal_this_turn = True # End the interaction loop
+                    action_valid_this_turn = True # Signaling completion is a valid final "action"
 
-                    if command:
-                        logger.info(f"FS Agent proposed command: '{command}'")
-                        try:
-                            env_result_string = env.step(command)
-                            logger.info(f"Env Result: {env_result_string}")
-                            action_valid_this_turn = not env_result_string.startswith("Error:")
-                            new_state_desc_this_turn = env.get_state()
-                        except Exception as e:
-                            logger.error(f"Env error during FS step: {e}", exc_info=True)
-                            attempt_failed_prematurely = True; failure_reason = f"Env error executing '{command}': {e}"
-                            step_error_this_turn = str(e); is_terminal_this_turn = True
-                            env_result_string = f"Internal Error: {e}"; action_valid_this_turn = False
-                            new_state_desc_this_turn = state_before_action
-                    elif not agent_signaled_completion:
-                        logger.warning("FS Agent response lacked command/completion signal.")
-                        env_result_string = "Error: Agent response lacked command or completion signal."
+                if command:
+                    # If agent provided a command, execute it (even if completion was also signaled)
+                    logger.info(f"FS Agent proposed command: '{command}'")
+                    try:
+                        # Execute the command in the environment
+                        env_result_string = env.step(command)
+                        logger.info(f"Env Result: {env_result_string}")
+                        action_valid_this_turn = not env_result_string.startswith("Error:") # Step successful if no error prefix
+                        # Get the state description *after* the step
+                        new_state_desc_this_turn = env.get_state() # Update state desc based on result
+                    except Exception as e:
+                        logger.error(f"Environment error during FS step execution: {e}", exc_info=True)
+                        attempt_failed_prematurely = True; failure_reason = f"Environment error executing command '{command}': {e}"
+                        step_error_this_turn = str(e)
+                        is_terminal_this_turn = True # Error terminates loop
+                        env_result_string = f"Internal Error executing command: {e}" # Update result string for history
                         action_valid_this_turn = False
-                        
-                        # Track consecutive no-command responses
-                        consecutive_no_command_responses = getattr(env, '_consecutive_no_command_responses', 0) + 1
-                        setattr(env, '_consecutive_no_command_responses', consecutive_no_command_responses)
-                        
-                        if consecutive_no_command_responses >= 3:
-                            logger.error("FS Agent failed to provide command/signal 3 times in a row.")
-                            attempt_failed_prematurely = True
-                            failure_reason = "Agent failed to provide valid command/signal 3 times consecutively"
-                            is_terminal_this_turn = True
-                        else:
-                            # Reset counter if we get a valid command/signal next time
-                            env_result_string += f" ({consecutive_no_command_responses}/3 consecutive invalid responses)"
+                        new_state_desc_this_turn = state_before_action # Revert state desc on error? Or use env's state? Use before state for safety.
+                elif not agent_signaled_completion:
+                    # No command parsed and no completion signal -> Invalid response
+                    logger.warning(f"FS Agent response lacked a command and did not signal completion. Raw response:\n{llm_response_text}")
+                    env_result_string = "Error: Agent response did not contain a valid command or completion signal."
+                    action_valid_this_turn = False
+                    # Consider if this should immediately fail the attempt or allow retry? For now, just log and continue turn, history reflects error.
 
-                    # Add environment's result back if loop continues
-                    if not is_terminal_this_turn:
-                        conversation_history.append({'role': 'user', 'parts': [env_result_string]})
+                # Add environment's result back to conversation history IF the loop isn't terminating yet
+                # Avoid adding user message if agent just signaled completion or errored out.
+                if not is_terminal_this_turn:
+                    conversation_history.append({'role': 'user', 'parts': [env_result_string]})
 
         # ============================ TTT Turn (Non-Conversational) ============================
         elif is_ttt:
-            # ... (TTT logic remains largely unchanged, ensure parse_agent_response handles it okay) ...
-            # Minimal change needed here unless TTT responses also need ```action checks
             if is_agent_turn:
                 last_invalid_action_feedback = ""; consecutive_invalid_moves_this_turn = 0
                 while True: # Inner loop for handling invalid moves within a single agent turn
+                    # Prepare prompt context for this attempt
                     current_prompt_context = prompt_context_before_action.copy() # Use state before this turn attempt
                     current_prompt_context['last_invalid_action_feedback'] = last_invalid_action_feedback
+
+                    # Ensure all required keys for the template are present
                     if 'goal' not in current_prompt_context: current_prompt_context['goal'] = env.get_goal()
                     if 'current_player' not in current_prompt_context: current_prompt_context['current_player'] = agent_player_mark
 
                     try:
+                        # Remove feedback placeholder if template doesn't use it
                         template_uses_feedback = '{last_invalid_action_feedback}' in prompts['generate_template']
                         if not template_uses_feedback: current_prompt_context.pop('last_invalid_action_feedback', None)
+
                         generation_prompt = prompts['generate_template'].format(**current_prompt_context)
                         logger.debug(f"Agent Prompt (Turn {current_turn_number}, Try {consecutive_invalid_moves_this_turn + 1}):\n{generation_prompt}")
-                    except KeyError as e: logger.error(f"TTT Prompt key error: {e}.", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Prompt key error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break
-                    except Exception as e: logger.error(f"TTT Prompt format error: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Prompt format error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break
+                    except KeyError as e:
+                        logger.error(f"TTT Prompt formatting error: Missing key '{e}'. Check template.", exc_info=True)
+                        attempt_failed_prematurely = True; failure_reason = f"Prompt key error: {e}"
+                        step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break # Exit inner and outer loop
+                    except Exception as e:
+                         logger.error(f"TTT Prompt formatting error: {e}", exc_info=True)
+                         attempt_failed_prematurely = True; failure_reason = f"Prompt format error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break
 
+                    # Generate action (non-conversational)
                     llm_action = agent.generate_action(generation_prompt)
 
                     if llm_action is None:
-                        logger.error(f"TTT Agent failed action (API Error?). Failing."); attempt_failed_prematurely = True; failure_reason = "Agent LLM failed to respond"; step_error_this_turn = failure_reason; action_taken_this_turn = 'AGENT_API_ERROR'; is_terminal_this_turn = True; break
+                        logger.error(f"TTT Agent failed to generate action (API Error?). Failing attempt.")
+                        attempt_failed_prematurely = True; failure_reason = "Agent LLM failed to respond"
+                        step_error_this_turn = failure_reason; action_taken_this_turn = 'AGENT_API_ERROR'; is_terminal_this_turn = True; break # Exit inner and outer loop
 
                     # Use the standard parser to extract the action (ignoring completion signal for TTT)
                     command, _ = parse_agent_response(llm_action) # TTT doesn't use TASK_COMPLETE signal
 
-                    # --- Check for incorrect formatting (```action prefix in command) ---
-                    if command and command.strip().startswith("```action"):
-                         logger.error(f"TTT Agent failed: Included '```action' prefix in command: '{command}'. Failing.")
-                         attempt_failed_prematurely = True; failure_reason = "Agent included ```action prefix in command"
-                         is_terminal_this_turn = True; step_error_this_turn = failure_reason; action_valid_this_turn = False; action_taken_this_turn = command
-                         break # Exit inner loop on format error
-
-                    elif command is None: # Handle case where parsing fails or only signal found
+                    if command is None: # Handle case where parsing fails or only signal found
                          logger.warning(f"Could not parse command from TTT agent response: {llm_action[:100]}. Treating as invalid.")
                          action_taken_this_turn = llm_action.strip() # Log raw response as action attempt
                          action_valid_this_turn = False
@@ -346,22 +350,37 @@ def run_attempt(attempt_id: int, env: BaseEnvironment, agent: LLMInterface, eval
                     # Process valid/invalid action
                     if action_valid_this_turn:
                         try:
+                            # Execute valid action
                             new_state_desc_this_turn, is_terminal_this_turn = env.step(action_taken_this_turn)
                             logger.debug(f"Agent action executed. New State:\n{new_state_desc_this_turn}\nTerminal: {is_terminal_this_turn}")
-                        except Exception as e: logger.error(f"Env error TTT step: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Env error agent step: {e}"; step_error_this_turn = str(e); is_terminal_this_turn = True; new_state_desc_this_turn = state_before_action
-                        break # Exit inner loop
-                    else: # Invalid action
-                        consecutive_invalid_moves_this_turn += 1; agent_made_any_invalid_move_in_attempt = True
-                        logger.warning(f"Invalid TTT action '{action_taken_this_turn}' (Attempt {consecutive_invalid_moves_this_turn}/{MAX_INVALID_MOVES_PER_TURN})")
-                        step_error_this_turn = f"Invalid action: {action_taken_this_turn}"
-                        new_state_desc_this_turn = state_before_action
-                        if template_uses_feedback: last_invalid_action_feedback = f"\nYour previous move ('{action_taken_this_turn}') was invalid. Please choose an empty cell (e.g., 'place X at row,col')."
-                        else: last_invalid_action_feedback = ""
+                        except Exception as e:
+                            logger.error(f"Environment error during TTT agent step execution: {e}", exc_info=True)
+                            attempt_failed_prematurely = True; failure_reason = f"Environment error during agent step: {e}"
+                            step_error_this_turn = str(e); is_terminal_this_turn = True
+                            new_state_desc_this_turn = state_before_action # Keep state before error
+                        break # Exit inner loop (valid action processed or step failed)
+                    else:
+                        # Handle invalid action
+                        consecutive_invalid_moves_this_turn += 1
+                        agent_made_any_invalid_move_in_attempt = True # Flag that invalid move occurred
+                        logger.warning(f"Invalid TTT action '{action_taken_this_turn}' by agent (Attempt {consecutive_invalid_moves_this_turn}/{MAX_INVALID_MOVES_PER_TURN})")
+                        step_error_this_turn = f"Invalid action: {action_taken_this_turn}" # Record error for history
+                        new_state_desc_this_turn = state_before_action # State doesn't change on invalid action
+
+                        # Prepare feedback for the next try (if applicable)
+                        if template_uses_feedback:
+                             last_invalid_action_feedback = f"\nYour previous move ('{action_taken_this_turn}') was invalid. Please choose an empty cell (e.g., 'place X at row,col')."
+                        else: last_invalid_action_feedback = "" # Don't include if template doesn't support it
+
+                        # Check if max invalid retries reached
                         if consecutive_invalid_moves_this_turn >= MAX_INVALID_MOVES_PER_TURN:
-                            logger.error(f"Failing TTT attempt: {MAX_INVALID_MOVES_PER_TURN} invalid moves.")
-                            attempt_failed_prematurely = True; failure_reason = f"{MAX_INVALID_MOVES_PER_TURN} invalid moves"; is_terminal_this_turn = True; break # Exit inner loop
+                            logger.error(f"Failing TTT attempt after {MAX_INVALID_MOVES_PER_TURN} consecutive invalid agent moves.")
+                            attempt_failed_prematurely = True; failure_reason = f"{MAX_INVALID_MOVES_PER_TURN} consecutive invalid moves"
+                            is_terminal_this_turn = True # Terminate the attempt
+                            break # Exit inner loop
+
                 # --- End of Agent's Turn Inner Loop ---
-                if is_terminal_this_turn and attempt_failed_prematurely: break # Exit outer loop if critical failure in inner
+                if is_terminal_this_turn and attempt_failed_prematurely: break # Exit outer loop if prompt error/API error/max invalid moves occurred
 
             # Opponent's Turn (TTT only, if game not over)
             elif not is_terminal_this_turn: # Check if game ended after agent's move
@@ -370,86 +389,129 @@ def run_attempt(attempt_id: int, env: BaseEnvironment, agent: LLMInterface, eval
                     try:
                         opponent_action_str, new_state_desc_this_turn, is_terminal_this_turn = env.make_opponent_move()
                         if opponent_action_str is None:
-                            logger.warning(f"Opponent ({env.opponent_player_mark}) failed move (Game should be over?).")
-                            if not env.check_goal_achieved() and not getattr(env,'is_draw',False): logger.error("Opponent failed move non-terminal state."); attempt_failed_prematurely = True; failure_reason = "Opponent failed move non-terminal"; is_terminal_this_turn = True
-                            action_taken_this_turn = "OPPONENT_ERROR"; action_valid_this_turn = False
-                        else: action_taken_this_turn = opponent_action_str; action_valid_this_turn = True; logger.debug(f"Opponent action: '{opponent_action_str}'. Terminal: {is_terminal_this_turn}")
-                    except Exception as e: logger.error(f"Error opponent step: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Error opponent step: {e}"; step_error_this_turn = str(e); action_taken_this_turn = "OPPONENT_EXCEPT"; is_terminal_this_turn = True; new_state_desc_this_turn = state_before_action
-                 else: logger.error(f"Logic error: TTT Env lacks make_opponent_move."); attempt_failed_prematurely = True; failure_reason = "Internal logic error"; step_error_this_turn = failure_reason; action_taken_this_turn = "LOGIC_ERROR"; is_terminal_this_turn = True; new_state_desc_this_turn = state_before_action
+                            logger.warning(f"Opponent ({env.opponent_player_mark}) failed to find a move (Game should be over?).")
+                            # This might indicate a draw state wasn't caught, or an error.
+                            # Check env state again just in case.
+                            if not env.check_goal_achieved() and not getattr(env,'is_draw',False):
+                                logger.error("Opponent failed move but game not terminal. Forcing failure.")
+                                attempt_failed_prematurely = True; failure_reason = "Opponent failed to move in non-terminal state"
+                                is_terminal_this_turn = True # Treat as terminal failure
+                            action_taken_this_turn = "OPPONENT_ERROR"
+                            action_valid_this_turn = False
+                        else:
+                            action_taken_this_turn = opponent_action_str # Record opponent's move
+                            action_valid_this_turn = True # Assume scripted move is valid
+                            logger.debug(f"Opponent action executed: '{opponent_action_str}'. New State:\n{new_state_desc_this_turn}\nTerminal: {is_terminal_this_turn}")
+                    except Exception as e:
+                        logger.error(f"Error during opponent's step execution: {e}", exc_info=True)
+                        attempt_failed_prematurely = True; failure_reason = f"Error during opponent step: {e}"
+                        step_error_this_turn = str(e); action_taken_this_turn = "OPPONENT_EXCEPT"; is_terminal_this_turn = True
+                        new_state_desc_this_turn = state_before_action # Revert state description for safety
+                 else:
+                    # Should not happen if env is TTT
+                    logger.error(f"Logic error: TTT Environment instance lacks make_opponent_move method.")
+                    attempt_failed_prematurely = True; failure_reason = "Internal logic error: Missing opponent move function"
+                    step_error_this_turn = failure_reason; action_taken_this_turn = "LOGIC_ERROR"; is_terminal_this_turn = True
+                    new_state_desc_this_turn = state_before_action
 
         # ============================ Generic Task Turn (Non-Conversational) ============================
         else:
-            # ... (Generic task logic needs similar check for ```action prefix) ...
+            # Handle other tasks using single-prompt generation (non-conversational)
             turn_player = "Agent"
             try:
+                # Prepare context. Use state *before* this turn.
                 current_prompt_context = prompt_context_before_action.copy()
+                # Ensure required keys (goal, state) are present
                 if 'goal' not in current_prompt_context: current_prompt_context['goal'] = env.get_goal()
                 if 'current_state' not in current_prompt_context: current_prompt_context['current_state'] = state_before_action
+
                 generation_prompt = prompts['generate_template'].format(**current_prompt_context)
                 logger.debug(f"Generic Agent Prompt (Turn {current_turn_number}):\n{generation_prompt}")
-            except KeyError as e: logger.error(f"Generic Prompt key error: {e}.", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Prompt key error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break
-            except Exception as e: logger.error(f"Generic Prompt format error: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Prompt format error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break
+            except KeyError as e:
+                logger.error(f"Generic Prompt formatting error: Missing key '{e}'. Check template.", exc_info=True)
+                attempt_failed_prematurely = True; failure_reason = f"Prompt key error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break # Exit loop
+            except Exception as e:
+                 logger.error(f"Generic Prompt formatting error: {e}", exc_info=True)
+                 attempt_failed_prematurely = True; failure_reason = f"Prompt format error: {e}"; step_error_this_turn = failure_reason; action_taken_this_turn = 'PROMPT_ERROR'; is_terminal_this_turn = True; break # Exit loop
 
+            # Generate action
             llm_action = agent.generate_action(generation_prompt)
 
             if llm_action is None:
-                logger.error(f"Generic Agent failed action (API Error?). Failing."); attempt_failed_prematurely = True; failure_reason = "Agent LLM failed to respond"; step_error_this_turn = failure_reason; action_taken_this_turn = 'AGENT_API_ERROR'; is_terminal_this_turn = True; break
+                logger.error(f"Generic Agent failed to generate action (API Error?). Failing attempt.")
+                attempt_failed_prematurely = True; failure_reason = "Agent LLM failed to respond"
+                step_error_this_turn = failure_reason; action_taken_this_turn = 'AGENT_API_ERROR'; is_terminal_this_turn = True; break # Exit loop
 
+            # Parse action and completion signal
             command, agent_signaled_completion = parse_agent_response(llm_action)
             action_taken_this_turn = command if command else ("(Completion Signal)" if agent_signaled_completion else "(No Action Parsed)")
-            action_valid_this_turn = False # Assume invalid
+            action_valid_this_turn = False # Assume invalid initially
 
-            # --- NEW: Check for incorrect formatting (```action prefix in command) ---
-            if command and command.strip().startswith("```action"):
-                logger.error(f"Generic Agent failed: Included '```action' prefix in command: '{command}'. Failing.")
-                attempt_failed_prematurely = True; failure_reason = "Agent included ```action prefix in command"
-                is_terminal_this_turn = True; step_error_this_turn = failure_reason; action_valid_this_turn = False
-            else:
-                # --- Regular processing ---
-                if agent_signaled_completion:
-                     logger.info("Agent signaled TASK_COMPLETE for generic task.")
-                     is_terminal_this_turn = True; action_valid_this_turn = True
+            if agent_signaled_completion:
+                 logger.info("Agent signaled TASK_COMPLETE for generic task.")
+                 is_terminal_this_turn = True # End interaction loop
+                 action_valid_this_turn = True # Valid final action
 
-                if command:
-                    logger.info(f"Agent proposed action: '{command}'")
-                    action_valid_this_turn = env.validate_action(command) # Basic validation
-                    if not action_valid_this_turn:
-                        logger.warning(f"Invalid action '{command}' for generic task. Failing.")
-                        attempt_failed_prematurely = True; failure_reason = f"Invalid action: {command}"; step_error_this_turn = failure_reason; is_terminal_this_turn = True
-                        new_state_desc_this_turn = state_before_action
-                    else:
-                        try:
-                            new_state_desc_this_turn, step_terminal = env.step(command)
-                            is_terminal_this_turn = is_terminal_this_turn or step_terminal
-                            logger.debug(f"Generic action executed. Terminal: {is_terminal_this_turn}")
-                        except Exception as e: logger.error(f"Env error generic step: {e}", exc_info=True); attempt_failed_prematurely = True; failure_reason = f"Env error: {e}"; step_error_this_turn = str(e); is_terminal_this_turn = True; new_state_desc_this_turn = state_before_action
-                elif not agent_signaled_completion:
-                     logger.warning("Generic Agent response lacked command/completion signal.")
-                     step_error_this_turn = "Invalid agent response (no command/signal)"; action_valid_this_turn = False
+            if command:
+                logger.info(f"Agent proposed action: '{command}'")
+                action_valid_this_turn = env.validate_action(command) # Validate command syntax/structure
+
+                if not action_valid_this_turn:
+                    logger.warning(f"Invalid action proposed by agent for generic task: '{command}'. Failing attempt.")
+                    # For generic tasks, typically fail immediately on invalid action unlike TTT's retry.
+                    attempt_failed_prematurely = True; failure_reason = f"Invalid action: {command}"; step_error_this_turn = failure_reason; is_terminal_this_turn = True
+                    new_state_desc_this_turn = state_before_action # State doesn't change
+                else:
+                    # Execute valid action
+                    try:
+                        new_state_desc_this_turn, step_terminal = env.step(command) # Execute step
+                        is_terminal_this_turn = is_terminal_this_turn or step_terminal # Become terminal if step says so OR agent signaled
+                        logger.debug(f"Generic action executed. New State:\n{new_state_desc_this_turn}\nStep Terminal: {step_terminal}, Overall Terminal: {is_terminal_this_turn}")
+                    except Exception as e:
+                        logger.error(f"Environment error during generic step execution: {e}", exc_info=True)
+                        attempt_failed_prematurely = True; failure_reason = f"Environment error executing action: {e}"
+                        step_error_this_turn = str(e); is_terminal_this_turn = True
+                        new_state_desc_this_turn = state_before_action # Revert state description
+            elif not agent_signaled_completion:
+                 # No command, no signal - invalid response
+                 logger.warning("Generic Agent response lacked command/completion signal.")
+                 # Consider failing attempt? For now, log and continue turn.
+                 step_error_this_turn = "Invalid agent response (no command/signal)"
+                 action_valid_this_turn = False
 
 
         # --- Post-Turn Processing & History Logging ---
+        # Assess intermediate status for regression tracking (if implemented by env)
         intermediate_status = env.assess_intermediate_status()
         regression = evaluator.track_regression(attempt_id, intermediate_status, turn_count)
         if regression: regressions_detected_in_attempt = True
 
+        # Log turn details to history list
         turn_data = {
-            'turn': current_turn_number, 'player': turn_player, 'state_before_action': state_before_action,
-            'action_taken': action_taken_this_turn, 'action_valid': action_valid_this_turn,
-            'state_after_action': new_state_desc_this_turn, 'intermediate_status': str(intermediate_status) if intermediate_status is not None else None,
-            'regression_detected_this_turn': regression, 'is_terminal_after_turn': is_terminal_this_turn,
-            'error_this_turn': step_error_this_turn
+            'turn': current_turn_number,
+            'player': turn_player, # Who acted this turn
+            'state_before_action': state_before_action, # State before the action was taken
+            'action_taken': action_taken_this_turn, # The action string proposed/executed
+            'action_valid': action_valid_this_turn, # Was the action valid syntactically/semantically?
+            'state_after_action': new_state_desc_this_turn, # State after the action (or before if error/invalid)
+            'intermediate_status': str(intermediate_status) if intermediate_status is not None else None, # Comparable status for regression
+            'regression_detected_this_turn': regression, # Did status regress this turn?
+            'is_terminal_after_turn': is_terminal_this_turn, # Did this turn result in a terminal state?
+            'error_this_turn': step_error_this_turn # Any error message from this turn's execution/validation
         }
-        if is_fs: turn_data['env_result_string'] = env_result_string
+        # Add FS-specific conversational context if applicable
+        if is_fs: turn_data['env_result_string'] = env_result_string # The string returned by FS env.step()
+
         history.append(turn_data)
 
 
         # --- Check for Terminal State to Exit Main Loop ---
         if is_terminal_this_turn:
-            if not attempt_failed_prematurely: logger.info(f"Environment reached terminal state or agent signaled completion.")
+            if not attempt_failed_prematurely: logger.info(f"Environment reached a terminal state or agent signaled completion.")
             else: logger.warning(f"Terminating attempt {attempt_id+1} due to failure: {failure_reason or step_error_this_turn or 'Unknown reason'}")
-            break
+            break # Exit the main interaction loop
 
+        # Increment turn counter only if loop continues
         turn_count += 1
 
     # --- Attempt End ---
@@ -459,72 +521,119 @@ def run_attempt(attempt_id: int, env: BaseEnvironment, agent: LLMInterface, eval
     # --- Final Score Assignment ---
     final_score = 1 # Default to Fail
     final_eval_response = "" # Raw response or justification
-    try: final_eval_input = env.get_final_eval_input()
+    try:
+        final_eval_input = env.get_final_eval_input() # Get final state representation for eval
     except Exception as e:
-        logger.error(f"Failed to get final evaluation input: {e}", exc_info=True)
+        logger.error(f"Failed to get final evaluation input from environment: {e}", exc_info=True)
         final_eval_input = f"Error getting final state: {e}"
-        if not attempt_failed_prematurely: failure_reason = f"Failed to get final eval input: {e}"
-        attempt_failed_prematurely = True # Always fail if eval input fails
+        # Ensure failure state propagates if getting eval input fails
+        # We check attempt_failed_prematurely later, so this just sets the reason
+        if not attempt_failed_prematurely:
+            failure_reason = f"Failed to get final eval input: {e}"
+            # Avoid setting attempt_failed_prematurely = True here directly,
+            # let the main check handle it to avoid potential double-flagging issues.
+            # If getting eval input fails, the evaluation logic below will likely
+            # result in score 1 anyway, or the premature flag check handles it.
+
 
     # --- Evaluation Logic ---
     if attempt_failed_prematurely:
+        # Attempt failed due to error, max steps, invalid moves etc. Score is 1.
         final_score = 1
         final_eval_response = f"Fail (Attempt ended prematurely: {failure_reason or 'Unknown reason'})"
         logger.info(f"Final Score: 1 (Attempt Failed: {failure_reason or 'Unknown reason'})")
     else:
-        # Attempt completed normally
+        # Attempt completed normally (reached terminal state or agent signaled completion)
+        # Now evaluate the outcome based on the environment type.
+
         # --- TTT Deterministic Eval ---
         if isinstance(env, TicTacToeEnv):
             logger.info(f"Performing TTT deterministic evaluation.")
-            agent_won = env.winner == env.agent_player_mark; opponent_won = env.winner == env.opponent_player_mark; is_draw = getattr(env, 'is_draw', False)
-            if opponent_won: final_score = 1; final_eval_response = f"Fail (Opponent '{env.opponent_player_mark}' won)"; logger.info(f"Score: 1 ({final_eval_response})")
+            agent_won = env.winner == env.agent_player_mark
+            opponent_won = env.winner == env.opponent_player_mark
+            is_draw = getattr(env, 'is_draw', False)
+
+            if opponent_won:
+                final_score = 1; final_eval_response = f"Fail (Opponent '{env.opponent_player_mark}' won)"
+                logger.info(f"Score: 1 ({final_eval_response})")
             elif (agent_won or is_draw):
                  outcome = "Agent Win" if agent_won else "Draw"
-                 if not agent_made_any_invalid_move_in_attempt: final_score = 3; final_eval_response = f"Success ({outcome} with no invalid moves)"; logger.info(f"Score: 3 ({final_eval_response})")
-                 else: final_score = 2; final_eval_response = f"Partial ({outcome} with invalid moves)"; logger.info(f"Score: 2 ({final_eval_response})")
-            else: logger.error(f"TTT inconclusive state? State:\n{final_eval_input}"); final_score = 1; final_eval_response = "Fail (Inconclusive)"; logger.info(f"Score: 1 ({final_eval_response})")
+                 if not agent_made_any_invalid_move_in_attempt:
+                     final_score = 3; final_eval_response = f"Success ({outcome} with no invalid moves)"
+                     logger.info(f"Score: 3 ({final_eval_response})")
+                 else:
+                     final_score = 2; final_eval_response = f"Partial ({outcome} achieved, but with invalid moves during attempt)"
+                     logger.info(f"Score: 2 ({final_eval_response})")
+            else:
+                 # Should not happen if game terminated normally without winner/draw
+                 logger.error(f"TTT evaluation inconclusive: Game ended but no winner/draw detected? State:\n{final_eval_input}")
+                 final_score = 1; final_eval_response = "Fail (Inconclusive final state)"
+                 logger.info(f"Score: 1 ({final_eval_response})")
+
         # --- FS Deterministic Eval ---
         elif isinstance(env, FileSystemEnv):
             logger.info(f"Performing FS deterministic evaluation.")
             try:
-                final_score = env.evaluate_final_state()
+                # Use the environment's internal evaluation method
+                final_score = env.evaluate_final_state() # Env returns 1, 2, or 3 directly
                 if final_score == 3: final_eval_response = "Success (Final state matches goal criteria)"
                 elif final_score == 2: final_eval_response = "Partial (Final state partially matches goal criteria)"
                 else: final_eval_response = "Fail (Final state does not meet goal criteria)"
                 logger.info(f"Score: {final_score} ({final_eval_response})")
-            except Exception as e: logger.error(f"Error during FS deterministic eval: {e}", exc_info=True); final_score = 1; final_eval_response = "Fail (Eval Error)"; logger.info(f"Score: 1 ({final_eval_response})")
+            except Exception as e:
+                logger.error(f"Error during FileSystem deterministic evaluation: {e}", exc_info=True)
+                final_score = 1; final_eval_response = "Fail (Error during deterministic evaluation)"
+                logger.info(f"Score: 1 ({final_eval_response})")
+
         # --- Other Tasks: LLM Eval ---
         else:
             logger.info(f"Performing LLM evaluation for task '{task_name}'.")
+            # Ensure finaleval_template exists
             if not prompts.get('finaleval_template'):
-                 logger.error(f"Cannot LLM evaluate: Missing finaleval_template for '{task_name}'."); final_score = 1; final_eval_response = "Fail (Missing eval prompt)"
+                 logger.error(f"Cannot perform LLM evaluation: Missing finaleval_template for task '{task_name}'.")
+                 final_score = 1; final_eval_response = "Fail (Missing evaluation prompt)"
             else:
                  logger.debug(f"LLM Eval Input:\n{final_eval_input}")
                  try:
+                     # Check if evaluator is available (might not be needed for deterministic)
                      if evaluator and hasattr(evaluator, 'evaluate_final_outcome'):
                          final_score, final_eval_response_raw = evaluator.evaluate_final_outcome(final_eval_input)
-                         final_eval_response = f"LLM Eval Raw: {final_eval_response_raw}"; logger.info(f"LLM evaluation score: {final_score}"); logger.debug(f"LLM Raw Eval Response: {final_eval_response_raw}")
-                     else: logger.error("LLM Evaluator unavailable."); final_score = 1; final_eval_response = "Fail (LLM Evaluator unavailable)"
-                 except Exception as e: logger.error(f"Error during LLM eval call: {e}", exc_info=True); final_score = 1; final_eval_response = f"Fail (LLM eval error: {e})"; logger.info(f"Score: 1 ({final_eval_response})")
+                         final_eval_response = f"LLM Eval Raw: {final_eval_response_raw}" # Store raw response for inspection
+                         logger.info(f"LLM evaluation completed. Parsed Score: {final_score}")
+                         logger.debug(f"LLM Raw Eval Response: {final_eval_response_raw}")
+                     else:
+                         logger.error("LLM Evaluator not available or configured correctly.")
+                         final_score = 1; final_eval_response = "Fail (LLM Evaluator unavailable)"
+
+                 except Exception as e:
+                     logger.error(f"Error during LLM evaluation call: {e}", exc_info=True)
+                     final_score = 1; final_eval_response = f"Fail (LLM evaluation error: {e})"
+                     logger.info(f"Score: 1 ({final_eval_response})")
 
     # --- Compile final result dictionary ---
-    # Determine final 'failed' flag correctly
-    final_failed_flag = attempt_failed_prematurely or (final_score == 1)
-    final_failure_reason = failure_reason if attempt_failed_prematurely else ("Evaluation resulted in Fail score" if final_score == 1 else "")
+    # FIX: Ensure 'failed' flag is False if score is 3, otherwise use attempt_failed_prematurely
+    is_successful_run = (final_score == 3 and not attempt_failed_prematurely)
+    final_failed_flag = False if is_successful_run else attempt_failed_prematurely
+    # If the run wasn't flagged as failed prematurely, but the score is 1 or 2, it's still not a premature failure,
+    # it's a completed run with a non-success score.
+    # Ensure the failure_reason is only set if the final_failed_flag is True
+    final_failure_reason = failure_reason if final_failed_flag else ""
+
 
     result = {
         'attempt_id': attempt_id + 1,
-        'success': final_score == 3, # Success only if score is 3
-        'score': final_score, # Score (1, 2, or 3)
-        'failed': final_failed_flag, # True if score=1 OR premature failure
-        'failure_reason': final_failure_reason, # Reason if failed=True
-        'final_outcome_description': final_eval_response,
-        'regressions_detected': regressions_detected_in_attempt,
-        'agent_made_invalid_moves': agent_made_any_invalid_move_in_attempt if is_ttt else None,
-        'turns_completed': len(history),
-        'duration_seconds': duration,
-        'final_eval_input': final_eval_input,
-        'history': history,
+        'success': final_score == 3, # Boolean flag for strict success based on score only
+        'score': final_score, # Numerical score (1, 2, or 3)
+        # Use the corrected flag that respects the score for successful runs
+        'failed': final_failed_flag,
+        'failure_reason': final_failure_reason, # Reason only if failed=True
+        'final_outcome_description': final_eval_response, # Justification or raw LLM eval response
+        'regressions_detected': regressions_detected_in_attempt, # Were any regressions tracked?
+        'agent_made_invalid_moves': agent_made_any_invalid_move_in_attempt if is_ttt else None, # Specific to TTT
+        'turns_completed': len(history), # How many turns were actually executed
+        'duration_seconds': duration, # Wall clock time for the attempt
+        'final_eval_input': final_eval_input, # The state/data provided to the evaluator
+        'history': history, # Detailed turn-by-turn log
     }
     return result
 
@@ -536,23 +645,35 @@ def main():
     parser.add_argument("-p", "--provider", default="gemini", help="LLM Provider (e.g., gemini)")
     parser.add_argument("-m", "--model", default=None, help="Agent LLM model name. Defaults to provider default.")
     parser.add_argument("-n", "--attempts", type=int, default=5, help="Number of independent attempts to run")
-    parser.add_argument("-s", "--steps", type=int, default=10, help="Max steps/turns per attempt (ignored for tasks like TTT & FileSystem with own limits)")
+    parser.add_argument("-s", "--steps", type=int, default=10, help="Max steps/turns per attempt (ignored for tasks like TTT & FileSystem)")
     parser.add_argument("--evaluator_model", default=None, help="Evaluator LLM model (defaults to agent model or provider default). Not used for deterministic tasks like TTT/FS.")
     parser.add_argument("--log_level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Logging level")
     parser.add_argument("--output_dir", default="results", help="Base directory for saving results")
     args = parser.parse_args()
 
     # --- Config & Setup ---
-    try: config = load_config()
-    except ValueError as e: print(f"Configuration Error: {e}"); exit(1)
+    try:
+        config = load_config()
+    except ValueError as e:
+        print(f"Configuration Error: {e}")
+        exit(1)
 
+    # Determine agent model name
     agent_model = args.model
     if not agent_model:
+        # Construct default model key based on provider (e.g., 'default_gemini_model')
         default_model_key = f'default_{args.provider.lower()}_model'
         agent_model = config.get(default_model_key)
-        if not agent_model: agent_model = 'gemini-1.5-flash-latest'; print(f"Warning: Agent model not specified & '{default_model_key}' not found. Using fallback '{agent_model}'.")
+        if not agent_model:
+             # Fallback to a generic default if provider-specific default isn't set
+             agent_model = 'gemini-1.5-flash-latest' # Or some other reasonable default
+             print(f"Warning: Agent model not specified and '{default_model_key}' not found in config. Using fallback '{agent_model}'.")
+
+    # Determine evaluator model name (only relevant for non-deterministic tasks)
     evaluator_model_name = args.evaluator_model if args.evaluator_model else config.get('evaluator_model', agent_model)
 
+
+    # Create unique output directory for this run
     output_dir = create_output_dir(args.output_dir, args.task, args.provider, agent_model)
     log_file = os.path.join(output_dir, "run.log")
     setup_logging(log_level=getattr(logging, args.log_level.upper()), log_file=log_file)
@@ -560,75 +681,97 @@ def main():
     logger.info("--- ToyBench Run Initializing ---")
     logger.info(f"Task: {args.task}, Provider: {args.provider}, Agent Model: {agent_model}, Attempts: {args.attempts}")
     logger.info(f"Evaluator Model: {evaluator_model_name} (Used for non-deterministic tasks)")
-    logger.info(f"Max Steps (--steps): {args.steps} (May be ignored by task)")
+    logger.info(f"Max Steps: {args.steps} (May be ignored by task)")
     logger.info(f"Log Level: {args.log_level}, Output Directory: {output_dir}")
+    # Log API key status carefully
     api_key_name = f'{args.provider.lower()}_api_key'
     api_key_present = bool(config.get(api_key_name))
     logger.info(f"API Key ({api_key_name}): {'Loaded' if api_key_present else 'NOT FOUND'}")
+
 
     # --- Initialization ---
     try:
         prompts = load_task_prompts(args.task, config.get('task_definitions_dir', 'tasks'))
         api_key = config.get(api_key_name)
-        if not api_key: raise ValueError(f"API Key '{api_key_name}' not found.")
+        if not api_key: raise ValueError(f"API Key '{api_key_name}' not found in config or environment variables.")
+
         agent_llm = get_llm_interface(args.provider, api_key, agent_model)
+        # Initialize evaluator LLM interface only if needed (non-deterministic tasks)
+        # For now, initialize always, but Evaluator class itself might check if needed.
         evaluator_llm = get_llm_interface(args.provider, api_key, evaluator_model_name)
-        environment = get_environment(args.task, prompts.get('goal_description', ''))
-        evaluator = Evaluator(evaluator_llm, prompts.get('finaleval_template', ''))
-    except FileNotFoundError as e: logger.error(f"Init failed: Task files not found. {e}", exc_info=True); print(f"Init Error: {e}"); exit(1)
-    except ValueError as e: logger.error(f"Init failed: Config/value error. {e}", exc_info=True); print(f"Init Error: {e}"); exit(1)
-    except Exception as e: logger.error(f"Init failed: Unexpected error. {e}", exc_info=True); print(f"Init Error: {e}"); exit(1)
+
+        environment = get_environment(args.task, prompts.get('goal_description', '')) # Pass goal description
+        evaluator = Evaluator(evaluator_llm, prompts.get('finaleval_template', '')) # Pass final eval template
+
+    except FileNotFoundError as e: logger.error(f"Initialization failed: Task files not found. {e}", exc_info=True); print(f"Initialization Error: {e}"); exit(1)
+    except ValueError as e: logger.error(f"Initialization failed: Configuration or value error. {e}", exc_info=True); print(f"Initialization Error: {e}"); exit(1)
+    except Exception as e: logger.error(f"Initialization failed: An unexpected error occurred. {e}", exc_info=True); print(f"Initialization Error: {e}"); exit(1)
 
     # --- Run Attempts ---
     logger.info("--- Starting Benchmark Attempts ---")
     all_results = []
-    start_time_attempt = 0
-    history_attempt = [] # Placeholder in case of early exit/error
+    start_time_attempt = 0 # Define outside loop for except block scope
+    history_attempt = [] # Define outside loop for except block scope
     for i in range(args.attempts):
         try:
-            start_time_attempt = time.time()
-            history_attempt = [] # Reset history for this attempt
+            start_time_attempt = time.time() # Capture start time for potential error duration calc
+            history_attempt = [] # Reset history for this attempt's potential error log
             attempt_result = run_attempt(i, environment, agent_llm, evaluator, args.steps, prompts, args.task)
-            # Assign local history to the result for potential use in exception block
-            if 'history' in attempt_result: history_attempt = attempt_result['history']
             all_results.append(attempt_result)
         except KeyboardInterrupt:
             logger.warning(f"--- Run interrupted by user during attempt {i+1} ---")
             print("\nRun interrupted.")
+            # Append partial failure result for the interrupted attempt
             all_results.append({
                 'attempt_id': i + 1, 'score': 1, 'failed': True, 'failure_reason': "User interrupt",
                 'success': False, 'final_outcome_description': "Interrupted by user", 'regressions_detected': False,
-                'turns_completed': len(history_attempt), 'agent_made_invalid_moves': None,
+                'turns_completed': len(history_attempt), # Use history captured within this loop iteration
+                'agent_made_invalid_moves': None,
                 'duration_seconds': time.time() - start_time_attempt,
                 'history': history_attempt, 'final_eval_input': 'N/A'})
-            break
+            break # Exit the loop
         except Exception as e:
+            # Catch critical errors during the attempt run itself
             logger.error(f"--- CRITICAL ERROR during attempt {i+1}: {e} ---", exc_info=True)
+            # Append a failure result
             all_results.append({
                 'attempt_id': i + 1, 'score': 1, 'failed': True, 'failure_reason': f"Unhandled exception in run_attempt: {e}",
                 'success': False, 'final_outcome_description': f"Unhandled exception: {e}", 'regressions_detected': False,
-                'turns_completed': len(history_attempt), 'agent_made_invalid_moves': None,
+                'turns_completed': len(history_attempt),
+                'agent_made_invalid_moves': None,
                 'duration_seconds': time.time() - start_time_attempt,
                 'history': history_attempt, 'final_eval_input': 'N/A'})
+            # Optionally continue to next attempt or break? Let's continue for now.
 
     # --- Report & Save ---
     logger.info("--- Benchmark Run Finished ---")
-    if not all_results: logger.warning("No attempts completed."); print("No results to report."); exit(0)
+    if not all_results:
+        logger.warning("No attempts were completed.")
+        print("No results to report.")
+        exit(0)
 
-    metrics = calculate_metrics(all_results, args.attempts)
+    metrics = calculate_metrics(all_results, args.attempts) # Pass requested attempts for context
     report = format_report(metrics, args.task, args.provider, agent_model, args.steps)
-    print("\n" + report + "\n"); logger.info(f"Final Report:\n{report}")
 
-    run_config_args = vars(args).copy()
+    print("\n" + report + "\n")
+    logger.info(f"Final Report:\n{report}")
+
+    # Prepare config args for saving (include resolved model names)
+    run_config_args = vars(args).copy() # Make a copy to modify
     run_config_args['agent_model_used'] = agent_model
     run_config_args['evaluator_model_used'] = evaluator_model_name
+    # Add API key presence for record, but not the key itself
     run_config_args[f'{args.provider.lower()}_api_key_loaded'] = api_key_present
 
-    try: save_results(output_dir, all_results, report, run_config_args)
-    except Exception as e: logger.error(f"Failed to save results: {e}", exc_info=True); print(f"Error saving results: {e}")
+    try:
+        save_results(output_dir, all_results, report, run_config_args)
+    except Exception as e:
+        logger.error(f"Failed to save results to {output_dir}: {e}", exc_info=True)
+        print(f"Error saving results: {e}")
 
-    logger.info(f"Results/logs saved in: {output_dir}")
+    logger.info(f"Results and logs saved in: {output_dir}")
     logger.info("--- ToyBench Run Complete ---")
+
 
 if __name__ == "__main__":
     main()
