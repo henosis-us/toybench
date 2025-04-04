@@ -1,182 +1,90 @@
 # environments/solar_system_env.py
-
 import logging
 import os
-import base64
-import mimetypes
 import re
 import time
 import json
-import subprocess # For potential cleanup if needed
 from typing import Tuple, Any, Dict
 
-# Assuming browser utilities are moved here or imported
-# For this example, let's define simplified versions or placeholders
-# In a real implementation, import these from utils.browser_utils
-# from utils.browser_utils import render_and_capture, encode_file_inline_data_gemini, format_feedback_message, capture_browser_logs
+# Correctly import the required functions from utils.browser_utils
+# No more placeholder functions should be defined in this file.
+try:
+    from browser_utils import render_and_capture, encode_file_inline_data_gemini, format_feedback_message
+    BROWSER_UTILS_AVAILABLE = True
+    logger_init = logging.getLogger(__name__) # Use logger early
+    logger_init.info("Successfully imported browser utilities.")
+except ImportError as e:
+    BROWSER_UTILS_AVAILABLE = False
+    # Define dummy functions ONLY IF import fails, to prevent crashes but indicate the issue.
+    # This allows the CLI to potentially run other tasks, but Solar will fail gracefully.
+    logger_init = logging.getLogger(__name__) # Use logger early
+    logger_init.error(f"Failed to import from utils.browser_utils: {e}. SolarSystemEnv will not function correctly.")
 
-# Placeholder/Simplified Helper Functions (Replace with actual imports/implementations)
-# ==============================================================================
-# --- Assume these are imported from utils.browser_utils ---
-def setup_browser_placeholder():
-    """Placeholder: Sets up Selenium Chrome browser."""
-    # In real implementation: use selenium webdriver setup
-    print("[Placeholder] Setting up browser...")
-    # Needs to return a driver-like object or handle internally
-    class MockDriver:
-        def save_screenshot(self, path): print(f"[Placeholder] Saving screenshot to {path}")
-        def get_log(self, log_type): return [{'level': 'INFO', 'message': '[Placeholder] Browser log message.', 'timestamp': time.time()*1000}]
-        def execute_script(self, script): print("[Placeholder] Executing script.") # Needed for console log capture
-        def get(self, url): print(f"[Placeholder] Navigating to {url}")
-        def quit(self): print("[Placeholder] Quitting browser.")
-    return MockDriver()
-
-def capture_browser_logs_placeholder(driver) -> str:
-    """Placeholder for capturing browser logs."""
-    logs = []
-    try:
-        # Get browser console logs
-        browser_logs = driver.get_log('browser')
-        for log in browser_logs:
-            level = log.get('level', 'UNKNOWN')
-            message = log.get('message', '')
-            # Simple formatting
-            logs.append(f"[{level}] {message}")
-        if not logs:
-            logs.append("[INFO] No console logs captured.")
-    except Exception as e:
-        logs.append(f"Error capturing logs: {str(e)}")
-    return "\n".join(logs)
-
-def render_and_capture_placeholder(html_file_path: str, screenshot_path: str, browser_log_path: str) -> tuple[bool, str]:
-    """Placeholder: Simulates rendering HTML, capturing screenshot and logs."""
-    print(f"[Placeholder] Rendering {html_file_path}...")
-    driver = None
-    try:
-        driver = setup_browser_placeholder()
-        # Simulate loading the page
-        file_url = f"file:///{os.path.abspath(html_file_path).replace(os.sep, '/')}"
-        driver.get(file_url)
-        time.sleep(0.1) # Simulate load time
-
-        # Simulate capturing screenshot
-        os.makedirs(os.path.dirname(screenshot_path), exist_ok=True)
-        # Create a dummy file for the screenshot
-        with open(screenshot_path, 'w') as f:
-            f.write("dummy_screenshot_data")
-        print(f"[Placeholder] Captured dummy screenshot: {screenshot_path}")
-
-        # Simulate capturing logs
-        logs = capture_browser_logs_placeholder(driver)
-        with open(browser_log_path, 'w', encoding='utf-8') as f:
-            f.write(logs)
-        print(f"[Placeholder] Captured browser logs: {browser_log_path}")
-
-        # Simulate success
-        render_success = True
-        final_logs = logs
-
-    except Exception as e:
-        error_msg = f"Error during placeholder rendering: {str(e)}"
-        print(error_msg)
-        # Create empty files on error
+    def render_and_capture(html_file_path: str, screenshot_path: str, browser_log_path: str, browser_type="chrome") -> tuple[bool, str]:
+        logger = logging.getLogger(__name__)
+        err_msg = "Error: render_and_capture called, but browser_utils failed to import."
+        logger.error(err_msg)
+        # Attempt to create empty files for consistency
         try: os.makedirs(os.path.dirname(screenshot_path), exist_ok=True); open(screenshot_path, 'w').close()
-        except: pass
-        try: os.makedirs(os.path.dirname(browser_log_path), exist_ok=True); open(browser_log_path, 'w').close()
-        except: pass
-        render_success = False
-        final_logs = error_msg
-    finally:
-        if driver:
-            driver.quit()
+        except OSError: pass
+        try: os.makedirs(os.path.dirname(browser_log_path), exist_ok=True); open(browser_log_path, 'w').write(err_msg)
+        except OSError: pass
+        return False, err_msg
 
-    return render_success, final_logs
-
-def encode_file_base64(file_path: str) -> str | None:
-    """Encodes a file to Base64 string."""
-    try:
-        with open(file_path, "rb") as f:
-            return base64.b64encode(f.read()).decode("utf-8")
-    except FileNotFoundError:
-        logger.error(f"File not found for encoding: {file_path}")
-        return None
-    except Exception as e:
-        logger.error(f"Error encoding file {file_path}: {e}")
+    def encode_file_inline_data_gemini(file_path: str) -> dict | None:
+        logger = logging.getLogger(__name__)
+        logger.error("Error: encode_file_inline_data_gemini called, but browser_utils failed to import.")
         return None
 
-def encode_file_inline_data_gemini(file_path: str) -> dict | None:
-    """Encodes a file to Base64 inline data format for Gemini API."""
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if mime_type is None:
-        mime_type = 'image/png' # Default fallback
-    base64_data = encode_file_base64(file_path)
-    if base64_data is None:
-        return None
-    return {
-        "type": "image",
-        "source": {
-            "inline_data": {
-                "mime_type": mime_type,
-                "data": base64_data
-            }
-        }
-    }
-
-def format_feedback_message(eval_response: str, browser_logs: str) -> str:
-    """Formats evaluation and browser logs into a structured feedback message."""
-    return f"""EVALUATION FEEDBACK:
-{eval_response}
-
-BROWSER CONSOLE LOGS:
-{browser_logs}
----
-Based on the above feedback and the original goal, please generate the *complete* and *corrected* HTML/JS code for the solar system simulation, wrapped in <solar.html>...</solar.html> tags. Ensure all necessary HTML structure, CSS, and JavaScript (including Three.js setup and logic) are present in your response.
-""".strip()
-# ==============================================================================
-
+    def format_feedback_message(eval_response: str, browser_logs: str) -> str:
+        logger = logging.getLogger(__name__)
+        logger.error("Error: format_feedback_message called, but browser_utils failed to import.")
+        return f"FEEDBACK UNAVAILABLE (browser_utils import failed)\nEval Response: {eval_response}\nLogs: {browser_logs}"
 
 from .base_env import BaseEnvironment
-# Import the LLM interface
+# Import the LLM interface - needed for type hinting
 from llm_interface import LLMInterface
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Standard logger for the rest of the class
 
 class SolarSystemEnv(BaseEnvironment):
     """
     Environment for the Solar System HTML generation task.
-
-    This environment manages the state (current HTML, screenshot, logs),
-    handles the interaction loop involving browser rendering and intermediate
-    LLM evaluation, and prepares input for the final evaluation.
+    Manages state (HTML, screenshot, logs), handles browser rendering,
+    intermediate evaluation, and prepares final evaluation input.
+    Relies on functions imported from utils.browser_utils.
     """
     # Define file naming conventions relative to the attempt's output directory
     HTML_FILENAME = "solar_iteration_{turn}.html"
     SCREENSHOT_FILENAME = "solar_screenshot_iteration_{turn}.png"
     LOG_FILENAME = "browser_logs_iteration_{turn}.txt"
-    TEMP_EVAL_FILENAME = "intermediate_eval_response_{turn}.json" # For intermediate eval results
+    # TEMP_EVAL_FILENAME = "intermediate_eval_response_{turn}.json" # Optional: If saving intermediate eval JSON
 
     def __init__(self,
                  goal_description: str,
-                 intermediate_eval_prompt: str, # Content of evalprompt.txt
+                 intermediate_eval_prompt: str,
                  intermediate_eval_llm: LLMInterface,
                  output_dir_base: str, # Base directory for THIS attempt's files
                  max_steps: int):
         """
         Initializes the Solar System Environment.
-
         Args:
-            goal_description (str): The main goal prompt content (from solarsystemprompt.txt).
+            goal_description (str): The main goal prompt content.
             intermediate_eval_prompt (str): The prompt template for intermediate visual evaluation.
             intermediate_eval_llm (LLMInterface): LLM interface for intermediate evaluations.
             output_dir_base (str): The specific directory to store files for the current attempt.
             max_steps (int): Maximum number of refinement turns allowed.
         """
+        if not BROWSER_UTILS_AVAILABLE:
+             # Raise an error during initialization if critical dependencies are missing
+             # This prevents the benchmark from trying to run Solar without the necessary tools
+             raise ImportError("Cannot initialize SolarSystemEnv: Failed to import required functions from utils.browser_utils. Check installation and logs.")
+
         self._goal = goal_description
         self._intermediate_eval_prompt = intermediate_eval_prompt
         self._intermediate_eval_llm = intermediate_eval_llm
         self._output_dir = output_dir_base
-        self._max_steps = max_steps # Track internally if needed
-
+        self._max_steps = max_steps
         self.current_turn = 0
         self.current_html_path = None
         self.current_screenshot_path = None
@@ -185,7 +93,12 @@ class SolarSystemEnv(BaseEnvironment):
         self.last_render_success = False
 
         # Ensure the output directory exists
-        os.makedirs(self._output_dir, exist_ok=True)
+        try:
+            os.makedirs(self._output_dir, exist_ok=True)
+        except OSError as e:
+             logger.error(f"Failed to create output directory {self._output_dir}: {e}", exc_info=True)
+             raise # Re-raise error if directory creation fails
+
         logger.info(f"SolarSystemEnv initialized. Output directory: {self._output_dir}")
 
     def _get_path(self, filename_template: str, turn: int) -> str:
@@ -205,9 +118,9 @@ class SolarSystemEnv(BaseEnvironment):
         self.last_render_success = False
 
         # Optional: Clean up files from previous runs within this specific directory if desired
-        # Be cautious if running multiple attempts in parallel to the same base dir structure
-        logger.info("SolarSystemEnv Reset. Ready for first generation.")
+        # logger.debug(f"Resetting Solar Env - clearing files in {self._output_dir} if needed...")
 
+        logger.info("SolarSystemEnv Reset. Ready for first generation.")
         # Initial state for the agent is simply the goal description
         return self._goal # The prompt template will combine this with feedback later
 
@@ -216,45 +129,44 @@ class SolarSystemEnv(BaseEnvironment):
         Returns the context dictionary for formatting the agent's prompt.
         Includes the main goal and the feedback from the last step.
         """
+        # Ensure feedback is always a string, even if initialization had issues (though reset should handle)
+        feedback = self.last_feedback_text if isinstance(self.last_feedback_text, str) else "Error retrieving feedback."
         return {
             "goal": self._goal,
-            "current_state": self.last_feedback_text # 'current_state' maps to feedback
+            "current_state": feedback # 'current_state' maps to feedback for the agent prompt
         }
 
     def validate_action(self, action: str) -> bool:
         """
         Validates the generated HTML code (the 'action').
-        Checks if it's non-empty and potentially contains expected structure.
+        Checks if it's non-empty. Basic structure checks are optional.
         """
         if not action or not action.strip():
             logger.warning("Validation failed: Received empty action (HTML code).")
             return False
 
-        # Basic check: Does it look like HTML? (Very naive)
-        if not ("<html" in action.lower() and "</html" in action.lower()):
-             logger.warning("Validation failed: Action doesn't contain <html> tags.")
-             # Allow it for now, maybe the agent is outputting partial code or just JS
-             # return False
-
-        # Check for the required wrapper tags if the prompt enforces them
-        if "<solar.html>" not in action or "</solar.html>" not in action:
-            logger.warning("Validation warning: Action missing <solar.html> wrapper tags.")
-            # Depending on strictness, could return False here. Let's allow it for now.
+        # More robust check might involve trying to parse with an HTML library, but keep it simple for now.
+        # Check for the required wrapper tags strictly if the prompt enforces them.
+        # If parse_agent_response extracts the content, this check might be redundant here,
+        # but it's a safeguard if the raw response is passed directly.
+        # if "<solar.html>" not in action or "</solar.html>" not in action:
+        #     logger.warning("Validation warning: Action missing <solar.html> wrapper tags.")
+            # return False # Make it strict?
 
         return True
 
     def step(self, action: str) -> Tuple[str, bool]:
         """
         Executes one step of the refinement process:
-        1. Saves the generated HTML (`action`).
-        2. Renders it using a headless browser.
+        1. Saves the generated HTML (`action` - potentially pre-parsed).
+        2. Renders it using a real headless browser via `render_and_capture`.
         3. Captures screenshot and browser logs.
-        4. Performs intermediate LLM evaluation on the screenshot.
-        5. Formats feedback (eval + logs).
+        4. Performs intermediate LLM evaluation on the screenshot via `encode_file_inline_data_gemini` and the LLM.
+        5. Formats feedback (eval + logs) via `format_feedback_message`.
         6. Returns the feedback as the new state and terminal status (False unless error/max steps).
 
         Args:
-            action (str): The HTML/JS code generated by the agent.
+            action (str): The HTML/JS code generated by the agent (potentially pre-parsed to remove tags).
 
         Returns:
             Tuple[str, bool]: (feedback_string, is_terminal)
@@ -262,16 +174,8 @@ class SolarSystemEnv(BaseEnvironment):
         self.current_turn += 1
         logger.info(f"--- Solar Env Step {self.current_turn}/{self._max_steps} ---")
 
-        # 1. Save the generated HTML
-        # Extract content within <solar.html> tags if present
-        html_to_save = action.strip()
-        match = re.search(r"<solar\.html>(.*?)</solar\.html>", action, re.DOTALL | re.IGNORECASE)
-        if match:
-            html_to_save = match.group(1).strip()
-            logger.debug("Extracted content within <solar.html> tags.")
-        else:
-            logger.warning("Could not find <solar.html> tags, saving entire action content.")
-
+        # 1. Save the generated HTML (action should be the content already)
+        html_to_save = action # Assume action is the relevant code block passed from run_attempt
         self.current_html_path = self._get_path(self.HTML_FILENAME, self.current_turn)
         try:
             with open(self.current_html_path, "w", encoding='utf-8') as f:
@@ -279,97 +183,100 @@ class SolarSystemEnv(BaseEnvironment):
             logger.info(f"Saved generated HTML to: {self.current_html_path}")
         except Exception as e:
             logger.error(f"Failed to save HTML file: {e}", exc_info=True)
-            self.last_feedback_text = f"Error: Failed to save the generated HTML code. Please try again.\nDetails: {e}"
-            return self.last_feedback_text, True # Terminal failure
+            self.last_feedback_text = f"CRITICAL ERROR: Failed to save the generated HTML code. Cannot proceed.\nDetails: {e}"
+            return self.last_feedback_text, True # Terminal failure if we can't even save the file
 
-        # 2. Render, Capture Screenshot & Logs
+        # 2. Render, Capture Screenshot & Logs using the REAL function
         self.current_screenshot_path = self._get_path(self.SCREENSHOT_FILENAME, self.current_turn)
         self.current_browser_log_path = self._get_path(self.LOG_FILENAME, self.current_turn)
 
-        # Use the actual rendering function (imported or defined)
-        self.last_render_success, browser_logs = render_and_capture_placeholder(
+        # Call the imported function from browser_utils
+        # It returns (success_bool, logs_or_error_string)
+        self.last_render_success, browser_logs_or_error = render_and_capture(
             self.current_html_path,
             self.current_screenshot_path,
             self.current_browser_log_path
+            # browser_type can be added if needed, defaults to chrome in browser_utils
         )
 
-        if not self.last_render_success:
-            logger.warning(f"Rendering or capture failed for turn {self.current_turn}.")
-            # Feedback includes only the browser logs/error message
-            self.last_feedback_text = format_feedback_message("Evaluation skipped: Rendering/Screenshot failed.", browser_logs)
-            # Decide if rendering failure is terminal. Let's allow recovery for now.
-            # return self.last_feedback_text, True # Make it terminal?
-            return self.last_feedback_text, False # Allow agent to try fixing render errors
+        # 3. Perform Intermediate Evaluation (only if rendering succeeded)
+        intermediate_eval_response = "Evaluation Skipped: Rendering or screenshot capture failed."
+        if self.last_render_success:
+            # Check screenshot path validity again before encoding
+            if self.current_screenshot_path and os.path.exists(self.current_screenshot_path) and os.path.getsize(self.current_screenshot_path) > 0:
+                logger.info("Performing intermediate evaluation on screenshot...")
+                # Call the imported function from browser_utils
+                screenshot_data = encode_file_inline_data_gemini(self.current_screenshot_path)
 
-        # 3. Perform Intermediate Evaluation (if rendering succeeded)
-        intermediate_eval_response = "Evaluation Error: Could not process screenshot or call LLM."
-        if os.path.exists(self.current_screenshot_path) and os.path.getsize(self.current_screenshot_path) > 0:
-            logger.info("Performing intermediate evaluation on screenshot...")
-            screenshot_data = encode_file_inline_data_gemini(self.current_screenshot_path)
-
-            if screenshot_data:
-                eval_payload = [
-                    {"role": "user", "parts": [
-                        screenshot_data["source"], # Gemini expects parts content directly
-                        {"text": self._intermediate_eval_prompt}
-                    ]}
-                ]
-                try:
-                    # Use the LLM interface's multimodal method
-                    # Note: Adjust method name/params based on llm_interface.py definition
-                    raw_response = self._intermediate_eval_llm.generate_content_multimodal(eval_payload) # Assuming this method exists
-
-                    if raw_response:
-                        # Basic extraction - assumes response is just text for eval
-                        # In reality, might need JSON parsing if Gemini returns structured multimodal response
-                        intermediate_eval_response = raw_response # Use the raw response for now
-                        logger.info(f"Intermediate eval response received: {intermediate_eval_response[:100]}...")
-                    else:
-                        logger.warning("Intermediate evaluator LLM returned no response.")
-                        intermediate_eval_response = "Evaluation Error: Intermediate evaluator LLM returned no response."
-
-                except AttributeError:
-                     logger.error("LLM Interface does not support required 'generate_content_multimodal' method.", exc_info=True)
-                     intermediate_eval_response = "Evaluation Error: LLM Interface lacks multimodal capability."
-                except Exception as e:
-                    logger.error(f"Error during intermediate LLM evaluation call: {e}", exc_info=True)
-                    intermediate_eval_response = f"Evaluation Error: Exception during API call - {e}"
+                if screenshot_data:
+                    # Construct payload for multimodal LLM
+                    eval_payload = [
+                        {"role": "user", "parts": [
+                            screenshot_data["source"], # The dict returned by encode_file...
+                            {"text": self._intermediate_eval_prompt}
+                        ]}
+                    ]
+                    try:
+                        # Call the multimodal generation method of the LLM interface
+                        raw_response = self._intermediate_eval_llm.generate_content_multimodal(eval_payload)
+                        if raw_response:
+                            intermediate_eval_response = raw_response # Use the raw response directly as feedback text
+                            logger.info(f"Intermediate eval response received (truncated): {intermediate_eval_response[:150]}...")
+                        else:
+                            logger.warning("Intermediate evaluator LLM returned no response.")
+                            intermediate_eval_response = "Evaluation Error: Intermediate evaluator LLM returned an empty response."
+                    except AttributeError:
+                         logger.error("LLM Interface provided does not support 'generate_content_multimodal'.", exc_info=True)
+                         intermediate_eval_response = "Evaluation Error: LLM Interface lacks the required multimodal capability."
+                         # This might be a critical setup error, consider making it terminal?
+                         # return format_feedback_message(intermediate_eval_response, browser_logs_or_error), True
+                    except Exception as e:
+                        logger.error(f"Error during intermediate LLM evaluation call: {e}", exc_info=True)
+                        intermediate_eval_response = f"Evaluation Error: Exception during intermediate API call - {e}"
+                else:
+                    logger.warning("Could not encode screenshot for intermediate evaluation.")
+                    intermediate_eval_response = "Evaluation Error: Failed to encode the captured screenshot."
             else:
-                logger.warning("Could not encode screenshot for intermediate evaluation.")
-                intermediate_eval_response = "Evaluation Error: Failed to encode screenshot."
+                logger.warning(f"Screenshot file missing or empty ({self.current_screenshot_path}), skipping intermediate evaluation.")
+                intermediate_eval_response = "Evaluation Skipped: Screenshot file missing or empty after capture attempt."
         else:
-            logger.warning("Screenshot file missing or empty, skipping intermediate evaluation.")
-            intermediate_eval_response = "Evaluation Skipped: Screenshot file missing or empty."
+             logger.warning(f"Rendering or capture failed for turn {self.current_turn}. Intermediate evaluation skipped.")
+             # browser_logs_or_error already contains the error message from render_and_capture
 
-        # 4. Format Feedback
-        self.last_feedback_text = format_feedback_message(intermediate_eval_response, browser_logs)
-        logger.debug(f"Formatted feedback for next turn:\n{self.last_feedback_text}")
+        # 4. Format Feedback using the REAL function
+        # Pass the potentially error-containing message from render_and_capture if it failed
+        self.last_feedback_text = format_feedback_message(intermediate_eval_response, browser_logs_or_error)
+        logger.debug(f"Formatted feedback for next turn (truncated):\n{self.last_feedback_text[:500]}...")
 
         # 5. Return state and terminal status
-        # Terminal only if max steps reached (checked by runner) or critical unrecoverable error happened (handled above)
-        return self.last_feedback_text, False
+        # Terminal status is determined by the main loop (max steps) or critical errors above.
+        # Rendering failure is not treated as terminal here, allowing the agent to try fixing it.
+        is_terminal = False # Default to non-terminal for a regular step
+        return self.last_feedback_text, is_terminal
 
     def get_final_eval_input(self) -> str:
         """
         Returns the path to the *final* screenshot generated in the last successful step.
-        If the last step failed to render, it might return None or the path to an empty/failed file.
         """
-        if self.last_render_success and self.current_screenshot_path and os.path.exists(self.current_screenshot_path):
+        # Check if the last render was successful AND the path exists and is non-empty
+        if self.last_render_success and self.current_screenshot_path and os.path.exists(self.current_screenshot_path) and os.path.getsize(self.current_screenshot_path) > 0:
             logger.info(f"Providing final screenshot path for evaluation: {self.current_screenshot_path}")
             return self.current_screenshot_path
         else:
-            logger.warning("Final evaluation input requested, but last render failed or screenshot missing.")
-            # Return the path anyway, evaluator needs to handle missing file
+            logger.warning("Final evaluation input requested, but last render failed or screenshot missing/empty.")
+            # Return a specific indicator string or the potentially invalid path
+            # The Evaluator must handle this case.
             return self.current_screenshot_path if self.current_screenshot_path else "SCREENSHOT_UNAVAILABLE"
 
     # --- Other Required BaseEnvironment Methods ---
 
     def check_goal_achieved(self) -> bool:
-        """Goal achievement is determined by the final multimodal evaluation, not checkable here."""
-        return False
+        """Goal achievement is determined by the final multimodal evaluation, not checkable deterministically here."""
+        return False # Final score is the indicator
 
     def assess_intermediate_status(self) -> Any:
-        """Intermediate status/regression tracking is not the primary focus for this task."""
+        """Intermediate status/regression tracking is currently not implemented for this visual task."""
+        # Could potentially parse intermediate eval scores if they were numeric, but current setup uses text feedback.
         return None # Disabled
 
     def get_agent_player_mark(self) -> str | None:
@@ -379,9 +286,8 @@ class SolarSystemEnv(BaseEnvironment):
     def get_state(self) -> str:
         """
         Returns a representation of the current state. For this env,
-        the most relevant 'state' for the agent is the feedback from the last turn.
+        the feedback from the last turn is the most relevant state component for the agent.
         """
-        # Could also return the path to the current HTML file, but feedback is more direct.
         return self.last_feedback_text
 
     def get_goal(self) -> str:

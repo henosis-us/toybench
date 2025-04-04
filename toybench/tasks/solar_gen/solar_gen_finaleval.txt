@@ -1,0 +1,9 @@
+Evaluate the provided image based on the representation of planets and moons. Ignore any UI elements or text outside of the main display area depicting astronomical objects.
+
+Use the following rating system:
+
+*   **1:** No planets or moons are visible, or only the Sun is present.
+*   **2:** At least one distinct object that is not the Sun is visible. The precise identification of the planets and moons is not required for a rating of 2 as long as at least one other than the sun is present. Just lables for the planets without any visualization does not score as a 2. Assume that any distinctly rendered non-Sun object is a planet or moon, for the purpose of the rating.
+*   **3:** More than 5 planets (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune) are visible, and at least one moon from is also visible.
+
+Provide a description of the scene focusing on the celestial bodies present and explain your rating decision before outputting the rating score noting the state of planets and moons. Always output your rating like this: `<rating>X</rating>`, where X is 1, 2, or 3.

@@ -1,0 +1,26 @@
+Core Visual Features:3D Rendering: Web-based, real-time 3D visualization of the solar system using Three.js and WebGL.
+Visually Impressive: Designed to be visually appealing with realistic planet colors, starry background, and smooth animations.
+Proportional Scaling (Compromised):Planet sizes are proportionally accurate relative to each other (usingSIZE_SCALEfor visibility).
+Orbital distances are proportionally scaled but compressed (DIST_SCALE) to fit within view while maintaining correct ratios.
+Planets Included: Sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.Moons:Earth's MoonMars's Moons (Phobos & Deimos)
+Jupiter's Galilean Moons (Io, Europa, Ganymede)
+Moons orbit their respective planets realistically.
+Saturn's Rings: Visually represented with transparent rings.
+Orbital Trails: Semi-transparent trails dynamically rendered to show the orbital paths of planets (and moons with trails enabled).
+Planet Labels: Dynamic labels that appear when the camera zooms in close to planets and moons, improving identification.
+Lighting:Point light source emanating from the Sun to illuminate planets.Ambient light for general scene illumination.Emissive material on the Sun to simulate self-illumination.Starry
+Background: A dense field of stars for immersive space environment.
+Interactive and UI Features:Orbit Controls: Interactive camera controls allowing users to:Rotate: Orbit around the solar system.
+Pan: Move the viewpoint laterally.Zoom: Move closer or further away from the solar system.
+Simulation Speed Control: UI slider to adjust the simulation speed, allowing users to speed up, slow down, or pause the animation.Planet Selection 
+Menu: Dropdown menu to select and "lock" the camera onto a specific planet, allowing for focused observation. Default to the sun so that the user can see the entire solar system."Reset View"
+Button: Returns the camera to a default, overview position.Scale Indicator: Displays a persistent scale reference at the bottom left, showing:The unit conversion for Astronomical Units (AU) to simulation units.The scaled diameter of Earth as a size reference.When a planet is selected, it also shows the current distance to that planet in AU.
+Scientific Aspects (Approximations):Orbital Mechanics: Planets orbit the Sun with varying speeds, approximating Keplerian motion (outer planets move slower). Moons orbit their planets.
+Proportional Sizes and Distances: While not to true scale (which would be impractical), the sizes and distances are proportionally represented to give a sense of scale relationships within the solar system.
+Planet Data: Uses realistic (though scaled) data for planet radii, orbital distances, and colors, derived from astronomical information.
+Technical Aspects:Single HTML File: Complete simulation is contained within a single HTML file for easy distribution and execution.Uses Three.js Library: Leverages the powerful Three.js JavaScript library for 3D rendering and animation.
+Responsive Design: Canvas resizes to fit the browser window, adapting to different screen sizes.
+Efficient Animation Loop: UsesrequestAnimationFramefor smooth and performant animation updates.
+Visibility Improvements:too realistic of a scale will make things impossible to see. you must balance scale with visibility for the demoall planets must be visible around the sunAdjusted Scale Factors:SIZE_SCALEandDIST_SCALEare tuned to make planets and moons more visible without losing the sense of scale relationships.
+Initial Camera Position: Camera starts at a position that provides a good overview of the entire solar system.
+Label Visibility Logic: Labels dynamically appear and disappear based on camera distance and visibility, ensuring they are helpful without being intrusive.

@@ -1,0 +1,6 @@
+create this demo:
+{goal}
+You will be given evaluation feedback by another model in order to improve the output across multiple turns
+You are allowed to think before outputting the file if you want but you must output the ENTIRE file on each interation turn wrapped in xml like so: <solar.html>file content</solar.html>
+DO NOT FORGET THE TAGS FOR WRAPPING
+YOU MUST OUTPUT THE ENTIRE FILE ON EACH SET OF FEEDBACK YOU ARE GIVEN OR YOU WILL FAIL THE EVALUATION
