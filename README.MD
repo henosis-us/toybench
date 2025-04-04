@@ -4,7 +4,7 @@
 
 **ToyBench** evaluates the capability of Large Language Models (LLMs) to **plan, take actions agentically over time, and refine outputs based on feedback**. Our vision is to create a standardized method for measuring how well LLMs translate complex requirements and high-level goals into tangible, **"valid" sequences of actions or artifacts** within defined environments, assessed through a practical, multi-step process that may involve interaction and iteration.
 
-Benchmark runs across **Tic-Tac-Toe** (strategic planning, unlimited turns), **File System** management (complex instruction following, state tracking, 10-round horizon), and iterative **Solar System** generation (visual refinement, code generation, multimodal feedback, 10-round horizon) demonstrate significant variation in capabilities between different models and highlight the distinct challenges posed by each task type and time horizon.
+Benchmark runs across **Tic-Tac-Toe** (strategic planning, unlimited turns), **File System** management (complex instruction following, state tracking, 50-round horizon), and iterative **Solar System** generation (visual refinement, code generation, multimodal feedback, 3-round horizon) demonstrate significant variation in capabilities between different models and highlight the distinct challenges posed by each task type and time horizon.
 
 **Core Goals:**
 
@@ -50,7 +50,7 @@ ToyBench uses interaction loops and outcome-based scoring:
 
 *   **`pass@1` (Reliability):** `(# Successful Attempts) / (Total Attempts Completed)`. Average success rate per try.
 *   **`pass@k` / `pass@20` (Capability):** 100% if *at least one* of the first `k` (typically 20) attempts succeeded, 0% otherwise. Often labeled "Any Success in Run".
-*   **Overall ToyBench Score:** Can be calculated as the **Average `pass@1` score across all included tasks** *if run with a consistent round limit*. The results presented below use different effective horizons per task (TTT: Unlimited, FS: 10, SolarGen: 10), making a single overall score less directly comparable. Performance should be assessed considering the specific task constraints and relative strengths.
+*   **Overall ToyBench Score:** Can be calculated as the **Average `pass@1` score across all included tasks** *if run with a consistent round limit*. The results presented below use different effective horizons per task (TTT: Unlimited, FS: 50 MAX, SolarGen: 3), making a single overall score less directly comparable. Performance should be assessed considering the specific task constraints and relative strengths.
 
 ## Overall Performance Summary (Varied Horizons)
 
@@ -96,7 +96,7 @@ Below are detailed results for each task, comparing all models tested under the 
 
 ### Task: Complex File Organizer
 
-*   **Rounds:** 10 (Reported in Logs)
+*   **Rounds:**
 *   *Tests complex instruction following, state tracking, conditional logic, command generation.*
 
 | Model                             | `pass@1` (Perfect Match) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count |
@@ -114,7 +114,7 @@ Below are detailed results for each task, comparing all models tested under the 
 
 ### Task: Solar System Generator (Iterative Refinement)
 
-*   **Rounds: 10** (Reported in Logs)
+*  
 *   *Tests HTML/JS code generation, incorporating visual feedback, debugging from logs.*
 
 | Model                             | `pass@1` (>5 Planets + Moon) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count |
@@ -126,7 +126,7 @@ Below are detailed results for each task, comparing all models tested under the 
 | `gemini-2.0-flash-lite`           | 0.0%                         | 20.0%                         | 4                               |
 *(`*` Model tested but excluded from overall average due to incomplete data across all tasks)*
 
-**Commentary:** The 10-round iterative task remains challenging. `gemini-2.5-pro-exp` is the only model demonstrating capability for full success, albeit unreliably. Most models achieve partial success (rendering *something* visible) but fail to meet the complex final criteria within 10 refinement rounds.
+**Commentary:** Iterative tasks remain challenging. `gemini-2.5-pro-exp` is the only model demonstrating capability for full success, albeit unreliably. Most models achieve partial success (rendering *something* visible) but fail to meet the complex final criteria within 3 refinement rounds.
 
 ---
 
@@ -150,12 +150,12 @@ Below are detailed results for each task, comparing all models tested under the 
 # --- Run TicTacToe (Unlimited Rounds) ---
 python toybench_cli.py --task tic_tac_toe --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20
 
-# --- Run Complex File System (e.g., 10 Round Cap based on logs) ---
+# --- Run Complex File System ---
 # Use --rounds 50 or similar for a high cap if desired
-python toybench_cli.py --task file_system --provider gemini --model gemini-2.0-flash --attempts 20 --rounds 10
+python toybench_cli.py --task file_system --provider gemini --model gemini-2.0-flash --attempts 20 --rounds 50
 
-# --- Run Solar System Generator (e.g., 10 Rounds based on logs) ---
-python toybench_cli.py --task solar_gen --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20 --rounds 10
+# --- Run Solar System Generator ---
+python toybench_cli.py --task solar_gen --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20 --rounds 3
 
 # --- Run Solar System Generator (Different Horizon - e.g., 3 Rounds) ---
 python toybench_cli.py --task solar_gen --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20 --rounds 3
