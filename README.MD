@@ -106,7 +106,7 @@ Below are detailed results for each task, comparing all models tested under the 
 | `gemini-2.5-pro-exp-03-25`        | 15.0%                    | 100%                          | **17**                          |
 | `gemini-1.5-flash-8b`             | 0.0%                     | 0%                            | 8                               |
 | `gemini-2.0-flash-thinking-exp`\* | *N/A*                    | *N/A*                         | *N/A*                           |
-*(`*` Data not available for this model in the provided logs)*
+*(`*` Data not available for this model due to rate limits)*
 
 **Commentary:** `gemini-2.0-flash` excels at precise execution of complex, sequential instructions. `gemini-2.5-pro-exp` understands the goal but struggles with perfect execution (`pass@1`), achieving partial success frequently.
 
