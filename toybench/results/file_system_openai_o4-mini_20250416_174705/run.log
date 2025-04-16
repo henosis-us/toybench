@@ -1,0 +1,328 @@
+2025-04-16 17:47:05,968 - __main__ - INFO - --- ToyBench Run Initializing ---
+2025-04-16 17:47:05,968 - __main__ - INFO - Task: file_system, Provider: openai, Agent Model: o4-mini, Attempts: 5, Max Rounds/Steps: 5
+2025-04-16 17:47:05,968 - __main__ - INFO - Evaluator Model: gemini-1.5-flash-8b
+2025-04-16 17:47:05,968 - __main__ - INFO - Log Level: DEBUG, Base Output Directory: results\file_system_openai_o4-mini_20250416_174705
+2025-04-16 17:47:05,969 - __main__ - DEBUG - Loaded prompt 'goal_description' from file_system_goal.txt
+2025-04-16 17:47:05,969 - __main__ - DEBUG - Loaded prompt 'generate_template' from file_system_generate.txt
+2025-04-16 17:47:05,969 - __main__ - DEBUG - Loaded prompt 'finaleval_template' from file_system_finaleval.txt
+2025-04-16 17:47:05,986 - __main__ - INFO - Loaded prompts for task: file_system
+2025-04-16 17:47:05,986 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-04-16 17:47:05,988 - httpx - DEBUG - load_verify_locations cafile='C:\\Users\\matth\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\certifi\\cacert.pem'
+2025-04-16 17:47:05,994 - llm_interface - INFO - OpenAIInterface initialised with model: o4-mini
+2025-04-16 17:47:05,995 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-04-16 17:47:05,996 - httpx - DEBUG - load_verify_locations cafile='C:\\Users\\matth\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\certifi\\cacert.pem'
+2025-04-16 17:47:06,003 - llm_interface - INFO - OpenAIInterface initialised with model: gemini-1.5-flash-8b
+2025-04-16 17:47:06,003 - __main__ - INFO - --- Starting Benchmark Attempts ---
+2025-04-16 17:47:06,004 - __main__ - INFO - Attempt 1 output dir: results\file_system_openai_o4-mini_20250416_174705\attempt_1
+2025-04-16 17:47:06,004 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 17:47:06,004 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:06,004 - __main__ - INFO - --- Starting Attempt 1 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 17:47:06,004 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:06,004 - __main__ - DEBUG - Environment reset. Initial state description (truncated): You are currently in the '/project/src' directory. Use commands like 'ls', 'pwd', 'cd' to navigate and explore....
+2025-04-16 17:47:06,005 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 17:47:06,005 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 17:47:06,005 - __main__ - DEBUG - Initialized conversational history for file_system...
+2025-04-16 17:47:06,005 - __main__ - INFO - --- Attempt 1, Round/Turn 1/5 ---
+2025-04-16 17:47:06,005 - __main__ - DEBUG - Turn 1: Player = Agent
+2025-04-16 17:47:06,005 - __main__ - DEBUG - Calling conversational API (file_system). Hist len: 1
+2025-04-16 17:47:06,007 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': 'You are an agent interacting with a simulated file system. Your goal is:\nYou are an agent managing a simulated file system. You start in the `/project/src` directory. Your goal requires careful reading, conditional actions, file manipulation, and precise organization.\n\nPerform the following sequence of tasks:\n\n1.  **Read Configuration:** Navigate to the `/project` directory and read the content of the `config.txt` file. Parse this content to find the values for `version` and `target_dir`. Remember these values (e.g., version might be \'1.2\', target_dir might be \'data_v1.2\').\n2.  **Create Archive Directory:** Based on the `version` you found, create a nested directory structure: `/archive/<version>/` (e.g., `/archive/1.2/`). You will need to create `/archive` first if it doesn\'t exist.\n3.  **Create Final Data Directory:** Based on the `target_dir` name you found, create a directory structure: `/final/<target_dir>/` (e.g., `/final/data_v1.2/`). You will need to create `/final` first if it doesn\'t exist.\n4.  **Archive Source Code:**\n    a.  Copy the files `main.py` and `utils.py` from your current directory (`/project/src`) to the archive directory you created (e.g., `/archive/1.2/`).\n    b.  After successfully copying both files, remove the original `main.py` and `utils.py` from `/project/src`.\n5.  **Handle Logs Conditionally:**\n    a.  Check if the file `/project/tmp/error.log` exists.\n    b.  Create the directory `/final/logs` if it doesn\'t already exist.\n    c.  **If** `/project/tmp/error.log` *exists*: Copy it to `/final/logs/error.log` and then remove the original `/project/tmp/error.log`.\n    d.  **If** `/project/tmp/error.log` *does not exist*: Create a new, empty file named `/final/logs/status_ok.txt` using `echo "" > /final/logs/status_ok.txt`.\n6.  **Process Staging File:**\n    a.  Copy the file `/staging/ready.txt` into the final data directory you created (e.g., `/final/data_v1.2/`).\n    b.  After successfully copying it, remove the original `/staging/ready.txt`.\n7.  **Create Summary Report:**\n    a.  Create a new file named `/final/summary.txt`. Write the following exact line into it (replace `<version>` with the actual version): `Archived version <version> to /archive/<version>/`\n    b.  Append a second line to the *same* file (`/final/summary.txt`). The line should be (replace `<target_dir>` with the actual target directory name): `Processed data to /final/<target_dir>/`\n8.  **Preserve Assets:** Ensure the file `/project/assets/logo.png` is not modified, moved, or deleted.\n9.  **Final Location:** Navigate to the `/final` directory. Your final command before signaling completion should leave you in `/final`.\n\nAvailable commands: `ls`, `cd`, `pwd`, `mkdir`, `cat`, `cp`, `rm`, `echo >` (overwrite/create file with text), `echo >>` (append text to file). Remember `cp` copies files, `rm` deletes them. Use `cat` to read file content. Use `echo "text" > filename` or `echo "text" >> filename` for writing.\n\nWhen ALL steps are complete and verified, respond with `TASK_COMPLETE`.\n\nAvailable commands are: ls, cd, pwd, mkdir, cat, cp, rm, echo > (overwrite), echo >> (append)\n\nYou need to figure out the current state of the file system. Start by using commands like \'ls\' or \'pwd\' to understand your current location and see the files/directories present.\n\nPlan your sequence of actions to achieve the goal based on what you discover. Execute one command at a time. After each command you issue, I will respond with the result (e.g., \'Success.\', \'Error: ...\', or the output of \'ls\'/\'pwd\'). Use this result to track the state and decide your next action.\n\nWhen the task is complete according to the goal, respond with the exact phrase \'TASK_COMPLETE\' on a line by itself, potentially after your final action confirmation if applicable.\n\nOutput *only* the command you want to execute next in the following format:\n```action\n<your_command_here>\n```'}], 'model': 'o4-mini', 'temperature': 0.7, 'tools': None}}
+2025-04-16 17:47:06,016 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2025-04-16 17:47:06,017 - httpcore.connection - DEBUG - connect_tcp.started host='api.openai.com' port=443 local_address=None timeout=5.0 socket_options=None
+2025-04-16 17:47:06,045 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x000001CAA35C69E0>
+2025-04-16 17:47:06,045 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x000001CAA34BF5C0> server_hostname='api.openai.com' timeout=5.0
+2025-04-16 17:47:06,063 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x000001CAA35C69B0>
+2025-04-16 17:47:06,064 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:06,064 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-04-16 17:47:06,064 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-04-16 17:47:06,064 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-04-16 17:47:06,065 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:06,857 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Date', b'Wed, 16 Apr 2025 23:47:09 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'247'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-09rbohmh9vvqrn0d7lohsldy'), (b'openai-processing-ms', b'14'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'10000000'), (b'x-ratelimit-remaining-requests', b'9999'), (b'x-ratelimit-remaining-tokens', b'9999022'), (b'x-ratelimit-reset-requests', b'6ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_12ca45ba457d8c2d633668ea0ab81a3b'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'Set-Cookie', b'__cf_bm=wk8c5NZ9m5nAD_9ejytVyMQiIF.h6JDjawr.X1I8_Fw-1744847229-1.0.1.1-D9EwrICuOMS7Ddf5NkoTf.mF3FwABV6lXLIXP4EAkCOc92ZMPpGOJT977KSIv6XFdLSdkEMybWwN53M2YnIIoaZFX7S285pHwNG.d7UhEhA; path=/; expires=Thu, 17-Apr-25 00:17:09 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'X-Content-Type-Options', b'nosniff'), (b'Set-Cookie', b'_cfuvid=WPlMDjuQbtpMkFXjLolFl2t3cZiNU7Nn3opZWbuyC6U-1744847229762-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'Server', b'cloudflare'), (b'CF-RAY', b'931790ed1b095303-SLC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-04-16 17:47:06,858 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-04-16 17:47:06,859 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-04-16 17:47:06,859 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-04-16 17:47:06,859 - httpcore.http11 - DEBUG - response_closed.started
+2025-04-16 17:47:06,859 - httpcore.http11 - DEBUG - response_closed.complete
+2025-04-16 17:47:06,859 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/chat/completions "400 Bad Request" Headers([('date', 'Wed, 16 Apr 2025 23:47:09 GMT'), ('content-type', 'application/json'), ('content-length', '247'), ('connection', 'keep-alive'), ('access-control-expose-headers', 'X-Request-ID'), ('openai-organization', 'user-09rbohmh9vvqrn0d7lohsldy'), ('openai-processing-ms', '14'), ('openai-version', '2020-10-01'), ('x-ratelimit-limit-requests', '10000'), ('x-ratelimit-limit-tokens', '10000000'), ('x-ratelimit-remaining-requests', '9999'), ('x-ratelimit-remaining-tokens', '9999022'), ('x-ratelimit-reset-requests', '6ms'), ('x-ratelimit-reset-tokens', '5ms'), ('x-request-id', 'req_12ca45ba457d8c2d633668ea0ab81a3b'), ('strict-transport-security', 'max-age=31536000; includeSubDomains; preload'), ('cf-cache-status', 'DYNAMIC'), ('set-cookie', '__cf_bm=wk8c5NZ9m5nAD_9ejytVyMQiIF.h6JDjawr.X1I8_Fw-1744847229-1.0.1.1-D9EwrICuOMS7Ddf5NkoTf.mF3FwABV6lXLIXP4EAkCOc92ZMPpGOJT977KSIv6XFdLSdkEMybWwN53M2YnIIoaZFX7S285pHwNG.d7UhEhA; path=/; expires=Thu, 17-Apr-25 00:17:09 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('x-content-type-options', 'nosniff'), ('set-cookie', '_cfuvid=WPlMDjuQbtpMkFXjLolFl2t3cZiNU7Nn3opZWbuyC6U-1744847229762-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('server', 'cloudflare'), ('cf-ray', '931790ed1b095303-SLC'), ('alt-svc', 'h3=":443"; ma=86400')])
+2025-04-16 17:47:06,860 - openai._base_client - DEBUG - request_id: req_12ca45ba457d8c2d633668ea0ab81a3b
+2025-04-16 17:47:06,860 - openai._base_client - DEBUG - Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1036, in _request
+    response.raise_for_status()
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\httpx\_models.py", line 749, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2025-04-16 17:47:06,861 - openai._base_client - DEBUG - Not retrying
+2025-04-16 17:47:06,861 - openai._base_client - DEBUG - Re-raising status error
+2025-04-16 17:47:06,861 - llm_interface - ERROR - OpenAI chat.completions error: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 131, in _call_chat_api
+    resp = self.client.chat.completions.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\resources\chat\completions\completions.py", line 929, in create
+    return self._post(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1276, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 949, in request
+    return self._request(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1057, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+2025-04-16 17:47:06,863 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 17:47:06,863 - __main__ - INFO - --- Attempt 1 Finished (Duration: 0.86s, Rounds/Turns Ran: 0) ---
+2025-04-16 17:47:06,863 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 17:47:06,864 - __main__ - INFO - Attempt 2 output dir: results\file_system_openai_o4-mini_20250416_174705\attempt_2
+2025-04-16 17:47:06,864 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 17:47:06,864 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:06,864 - __main__ - INFO - --- Starting Attempt 2 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 17:47:06,864 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:06,865 - __main__ - DEBUG - Environment reset. Initial state description (truncated): You are currently in the '/project/src' directory. Use commands like 'ls', 'pwd', 'cd' to navigate and explore....
+2025-04-16 17:47:06,865 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 17:47:06,865 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 17:47:06,865 - __main__ - DEBUG - Initialized conversational history for file_system...
+2025-04-16 17:47:06,865 - __main__ - INFO - --- Attempt 2, Round/Turn 1/5 ---
+2025-04-16 17:47:06,865 - __main__ - DEBUG - Turn 1: Player = Agent
+2025-04-16 17:47:06,865 - __main__ - DEBUG - Calling conversational API (file_system). Hist len: 1
+2025-04-16 17:47:06,866 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': 'You are an agent interacting with a simulated file system. Your goal is:\nYou are an agent managing a simulated file system. You start in the `/project/src` directory. Your goal requires careful reading, conditional actions, file manipulation, and precise organization.\n\nPerform the following sequence of tasks:\n\n1.  **Read Configuration:** Navigate to the `/project` directory and read the content of the `config.txt` file. Parse this content to find the values for `version` and `target_dir`. Remember these values (e.g., version might be \'1.2\', target_dir might be \'data_v1.2\').\n2.  **Create Archive Directory:** Based on the `version` you found, create a nested directory structure: `/archive/<version>/` (e.g., `/archive/1.2/`). You will need to create `/archive` first if it doesn\'t exist.\n3.  **Create Final Data Directory:** Based on the `target_dir` name you found, create a directory structure: `/final/<target_dir>/` (e.g., `/final/data_v1.2/`). You will need to create `/final` first if it doesn\'t exist.\n4.  **Archive Source Code:**\n    a.  Copy the files `main.py` and `utils.py` from your current directory (`/project/src`) to the archive directory you created (e.g., `/archive/1.2/`).\n    b.  After successfully copying both files, remove the original `main.py` and `utils.py` from `/project/src`.\n5.  **Handle Logs Conditionally:**\n    a.  Check if the file `/project/tmp/error.log` exists.\n    b.  Create the directory `/final/logs` if it doesn\'t already exist.\n    c.  **If** `/project/tmp/error.log` *exists*: Copy it to `/final/logs/error.log` and then remove the original `/project/tmp/error.log`.\n    d.  **If** `/project/tmp/error.log` *does not exist*: Create a new, empty file named `/final/logs/status_ok.txt` using `echo "" > /final/logs/status_ok.txt`.\n6.  **Process Staging File:**\n    a.  Copy the file `/staging/ready.txt` into the final data directory you created (e.g., `/final/data_v1.2/`).\n    b.  After successfully copying it, remove the original `/staging/ready.txt`.\n7.  **Create Summary Report:**\n    a.  Create a new file named `/final/summary.txt`. Write the following exact line into it (replace `<version>` with the actual version): `Archived version <version> to /archive/<version>/`\n    b.  Append a second line to the *same* file (`/final/summary.txt`). The line should be (replace `<target_dir>` with the actual target directory name): `Processed data to /final/<target_dir>/`\n8.  **Preserve Assets:** Ensure the file `/project/assets/logo.png` is not modified, moved, or deleted.\n9.  **Final Location:** Navigate to the `/final` directory. Your final command before signaling completion should leave you in `/final`.\n\nAvailable commands: `ls`, `cd`, `pwd`, `mkdir`, `cat`, `cp`, `rm`, `echo >` (overwrite/create file with text), `echo >>` (append text to file). Remember `cp` copies files, `rm` deletes them. Use `cat` to read file content. Use `echo "text" > filename` or `echo "text" >> filename` for writing.\n\nWhen ALL steps are complete and verified, respond with `TASK_COMPLETE`.\n\nAvailable commands are: ls, cd, pwd, mkdir, cat, cp, rm, echo > (overwrite), echo >> (append)\n\nYou need to figure out the current state of the file system. Start by using commands like \'ls\' or \'pwd\' to understand your current location and see the files/directories present.\n\nPlan your sequence of actions to achieve the goal based on what you discover. Execute one command at a time. After each command you issue, I will respond with the result (e.g., \'Success.\', \'Error: ...\', or the output of \'ls\'/\'pwd\'). Use this result to track the state and decide your next action.\n\nWhen the task is complete according to the goal, respond with the exact phrase \'TASK_COMPLETE\' on a line by itself, potentially after your final action confirmation if applicable.\n\nOutput *only* the command you want to execute next in the following format:\n```action\n<your_command_here>\n```'}], 'model': 'o4-mini', 'temperature': 0.7, 'tools': None}}
+2025-04-16 17:47:06,867 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2025-04-16 17:47:06,867 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:06,867 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-04-16 17:47:06,867 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-04-16 17:47:06,868 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-04-16 17:47:06,868 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:06,974 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Date', b'Wed, 16 Apr 2025 23:47:09 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'247'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-09rbohmh9vvqrn0d7lohsldy'), (b'openai-processing-ms', b'22'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'10000000'), (b'x-ratelimit-remaining-requests', b'9999'), (b'x-ratelimit-remaining-tokens', b'9999022'), (b'x-ratelimit-reset-requests', b'6ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_cfbb3425fc0b599ab4f6dca439e61fa9'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'931790f218895303-SLC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-04-16 17:47:06,975 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-04-16 17:47:06,975 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-04-16 17:47:06,975 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-04-16 17:47:06,975 - httpcore.http11 - DEBUG - response_closed.started
+2025-04-16 17:47:06,975 - httpcore.http11 - DEBUG - response_closed.complete
+2025-04-16 17:47:06,976 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/chat/completions "400 Bad Request" Headers({'date': 'Wed, 16 Apr 2025 23:47:09 GMT', 'content-type': 'application/json', 'content-length': '247', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-09rbohmh9vvqrn0d7lohsldy', 'openai-processing-ms': '22', 'openai-version': '2020-10-01', 'x-ratelimit-limit-requests': '10000', 'x-ratelimit-limit-tokens': '10000000', 'x-ratelimit-remaining-requests': '9999', 'x-ratelimit-remaining-tokens': '9999022', 'x-ratelimit-reset-requests': '6ms', 'x-ratelimit-reset-tokens': '5ms', 'x-request-id': 'req_cfbb3425fc0b599ab4f6dca439e61fa9', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '931790f218895303-SLC', 'alt-svc': 'h3=":443"; ma=86400'})
+2025-04-16 17:47:06,976 - openai._base_client - DEBUG - request_id: req_cfbb3425fc0b599ab4f6dca439e61fa9
+2025-04-16 17:47:06,976 - openai._base_client - DEBUG - Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1036, in _request
+    response.raise_for_status()
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\httpx\_models.py", line 749, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2025-04-16 17:47:06,976 - openai._base_client - DEBUG - Not retrying
+2025-04-16 17:47:06,976 - openai._base_client - DEBUG - Re-raising status error
+2025-04-16 17:47:06,977 - llm_interface - ERROR - OpenAI chat.completions error: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 131, in _call_chat_api
+    resp = self.client.chat.completions.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\resources\chat\completions\completions.py", line 929, in create
+    return self._post(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1276, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 949, in request
+    return self._request(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1057, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+2025-04-16 17:47:06,977 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 17:47:06,977 - __main__ - INFO - --- Attempt 2 Finished (Duration: 0.11s, Rounds/Turns Ran: 0) ---
+2025-04-16 17:47:06,977 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 17:47:06,978 - __main__ - INFO - Attempt 3 output dir: results\file_system_openai_o4-mini_20250416_174705\attempt_3
+2025-04-16 17:47:06,978 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 17:47:06,978 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:06,978 - __main__ - INFO - --- Starting Attempt 3 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 17:47:06,979 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:06,979 - __main__ - DEBUG - Environment reset. Initial state description (truncated): You are currently in the '/project/src' directory. Use commands like 'ls', 'pwd', 'cd' to navigate and explore....
+2025-04-16 17:47:06,979 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 17:47:06,979 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 17:47:06,979 - __main__ - DEBUG - Initialized conversational history for file_system...
+2025-04-16 17:47:06,979 - __main__ - INFO - --- Attempt 3, Round/Turn 1/5 ---
+2025-04-16 17:47:06,979 - __main__ - DEBUG - Turn 1: Player = Agent
+2025-04-16 17:47:06,980 - __main__ - DEBUG - Calling conversational API (file_system). Hist len: 1
+2025-04-16 17:47:06,980 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': 'You are an agent interacting with a simulated file system. Your goal is:\nYou are an agent managing a simulated file system. You start in the `/project/src` directory. Your goal requires careful reading, conditional actions, file manipulation, and precise organization.\n\nPerform the following sequence of tasks:\n\n1.  **Read Configuration:** Navigate to the `/project` directory and read the content of the `config.txt` file. Parse this content to find the values for `version` and `target_dir`. Remember these values (e.g., version might be \'1.2\', target_dir might be \'data_v1.2\').\n2.  **Create Archive Directory:** Based on the `version` you found, create a nested directory structure: `/archive/<version>/` (e.g., `/archive/1.2/`). You will need to create `/archive` first if it doesn\'t exist.\n3.  **Create Final Data Directory:** Based on the `target_dir` name you found, create a directory structure: `/final/<target_dir>/` (e.g., `/final/data_v1.2/`). You will need to create `/final` first if it doesn\'t exist.\n4.  **Archive Source Code:**\n    a.  Copy the files `main.py` and `utils.py` from your current directory (`/project/src`) to the archive directory you created (e.g., `/archive/1.2/`).\n    b.  After successfully copying both files, remove the original `main.py` and `utils.py` from `/project/src`.\n5.  **Handle Logs Conditionally:**\n    a.  Check if the file `/project/tmp/error.log` exists.\n    b.  Create the directory `/final/logs` if it doesn\'t already exist.\n    c.  **If** `/project/tmp/error.log` *exists*: Copy it to `/final/logs/error.log` and then remove the original `/project/tmp/error.log`.\n    d.  **If** `/project/tmp/error.log` *does not exist*: Create a new, empty file named `/final/logs/status_ok.txt` using `echo "" > /final/logs/status_ok.txt`.\n6.  **Process Staging File:**\n    a.  Copy the file `/staging/ready.txt` into the final data directory you created (e.g., `/final/data_v1.2/`).\n    b.  After successfully copying it, remove the original `/staging/ready.txt`.\n7.  **Create Summary Report:**\n    a.  Create a new file named `/final/summary.txt`. Write the following exact line into it (replace `<version>` with the actual version): `Archived version <version> to /archive/<version>/`\n    b.  Append a second line to the *same* file (`/final/summary.txt`). The line should be (replace `<target_dir>` with the actual target directory name): `Processed data to /final/<target_dir>/`\n8.  **Preserve Assets:** Ensure the file `/project/assets/logo.png` is not modified, moved, or deleted.\n9.  **Final Location:** Navigate to the `/final` directory. Your final command before signaling completion should leave you in `/final`.\n\nAvailable commands: `ls`, `cd`, `pwd`, `mkdir`, `cat`, `cp`, `rm`, `echo >` (overwrite/create file with text), `echo >>` (append text to file). Remember `cp` copies files, `rm` deletes them. Use `cat` to read file content. Use `echo "text" > filename` or `echo "text" >> filename` for writing.\n\nWhen ALL steps are complete and verified, respond with `TASK_COMPLETE`.\n\nAvailable commands are: ls, cd, pwd, mkdir, cat, cp, rm, echo > (overwrite), echo >> (append)\n\nYou need to figure out the current state of the file system. Start by using commands like \'ls\' or \'pwd\' to understand your current location and see the files/directories present.\n\nPlan your sequence of actions to achieve the goal based on what you discover. Execute one command at a time. After each command you issue, I will respond with the result (e.g., \'Success.\', \'Error: ...\', or the output of \'ls\'/\'pwd\'). Use this result to track the state and decide your next action.\n\nWhen the task is complete according to the goal, respond with the exact phrase \'TASK_COMPLETE\' on a line by itself, potentially after your final action confirmation if applicable.\n\nOutput *only* the command you want to execute next in the following format:\n```action\n<your_command_here>\n```'}], 'model': 'o4-mini', 'temperature': 0.7, 'tools': None}}
+2025-04-16 17:47:06,981 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2025-04-16 17:47:06,981 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:06,981 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-04-16 17:47:06,981 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-04-16 17:47:06,982 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-04-16 17:47:06,982 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:07,092 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Date', b'Wed, 16 Apr 2025 23:47:09 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'247'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-09rbohmh9vvqrn0d7lohsldy'), (b'openai-processing-ms', b'14'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'10000000'), (b'x-ratelimit-remaining-requests', b'9999'), (b'x-ratelimit-remaining-tokens', b'9999022'), (b'x-ratelimit-reset-requests', b'6ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_f040375c92d5f85af6630ea8d0f77e7e'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'931790f2d9305303-SLC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-04-16 17:47:07,093 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-04-16 17:47:07,093 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-04-16 17:47:07,093 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-04-16 17:47:07,093 - httpcore.http11 - DEBUG - response_closed.started
+2025-04-16 17:47:07,093 - httpcore.http11 - DEBUG - response_closed.complete
+2025-04-16 17:47:07,094 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/chat/completions "400 Bad Request" Headers({'date': 'Wed, 16 Apr 2025 23:47:09 GMT', 'content-type': 'application/json', 'content-length': '247', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-09rbohmh9vvqrn0d7lohsldy', 'openai-processing-ms': '14', 'openai-version': '2020-10-01', 'x-ratelimit-limit-requests': '10000', 'x-ratelimit-limit-tokens': '10000000', 'x-ratelimit-remaining-requests': '9999', 'x-ratelimit-remaining-tokens': '9999022', 'x-ratelimit-reset-requests': '6ms', 'x-ratelimit-reset-tokens': '5ms', 'x-request-id': 'req_f040375c92d5f85af6630ea8d0f77e7e', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '931790f2d9305303-SLC', 'alt-svc': 'h3=":443"; ma=86400'})
+2025-04-16 17:47:07,094 - openai._base_client - DEBUG - request_id: req_f040375c92d5f85af6630ea8d0f77e7e
+2025-04-16 17:47:07,094 - openai._base_client - DEBUG - Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1036, in _request
+    response.raise_for_status()
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\httpx\_models.py", line 749, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2025-04-16 17:47:07,095 - openai._base_client - DEBUG - Not retrying
+2025-04-16 17:47:07,095 - openai._base_client - DEBUG - Re-raising status error
+2025-04-16 17:47:07,095 - llm_interface - ERROR - OpenAI chat.completions error: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 131, in _call_chat_api
+    resp = self.client.chat.completions.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\resources\chat\completions\completions.py", line 929, in create
+    return self._post(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1276, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 949, in request
+    return self._request(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1057, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+2025-04-16 17:47:07,095 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 17:47:07,096 - __main__ - INFO - --- Attempt 3 Finished (Duration: 0.12s, Rounds/Turns Ran: 0) ---
+2025-04-16 17:47:07,096 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 17:47:07,096 - __main__ - INFO - Attempt 4 output dir: results\file_system_openai_o4-mini_20250416_174705\attempt_4
+2025-04-16 17:47:07,096 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 17:47:07,096 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:07,096 - __main__ - INFO - --- Starting Attempt 4 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 17:47:07,097 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:07,097 - __main__ - DEBUG - Environment reset. Initial state description (truncated): You are currently in the '/project/src' directory. Use commands like 'ls', 'pwd', 'cd' to navigate and explore....
+2025-04-16 17:47:07,097 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 17:47:07,097 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 17:47:07,097 - __main__ - DEBUG - Initialized conversational history for file_system...
+2025-04-16 17:47:07,097 - __main__ - INFO - --- Attempt 4, Round/Turn 1/5 ---
+2025-04-16 17:47:07,097 - __main__ - DEBUG - Turn 1: Player = Agent
+2025-04-16 17:47:07,097 - __main__ - DEBUG - Calling conversational API (file_system). Hist len: 1
+2025-04-16 17:47:07,099 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': 'You are an agent interacting with a simulated file system. Your goal is:\nYou are an agent managing a simulated file system. You start in the `/project/src` directory. Your goal requires careful reading, conditional actions, file manipulation, and precise organization.\n\nPerform the following sequence of tasks:\n\n1.  **Read Configuration:** Navigate to the `/project` directory and read the content of the `config.txt` file. Parse this content to find the values for `version` and `target_dir`. Remember these values (e.g., version might be \'1.2\', target_dir might be \'data_v1.2\').\n2.  **Create Archive Directory:** Based on the `version` you found, create a nested directory structure: `/archive/<version>/` (e.g., `/archive/1.2/`). You will need to create `/archive` first if it doesn\'t exist.\n3.  **Create Final Data Directory:** Based on the `target_dir` name you found, create a directory structure: `/final/<target_dir>/` (e.g., `/final/data_v1.2/`). You will need to create `/final` first if it doesn\'t exist.\n4.  **Archive Source Code:**\n    a.  Copy the files `main.py` and `utils.py` from your current directory (`/project/src`) to the archive directory you created (e.g., `/archive/1.2/`).\n    b.  After successfully copying both files, remove the original `main.py` and `utils.py` from `/project/src`.\n5.  **Handle Logs Conditionally:**\n    a.  Check if the file `/project/tmp/error.log` exists.\n    b.  Create the directory `/final/logs` if it doesn\'t already exist.\n    c.  **If** `/project/tmp/error.log` *exists*: Copy it to `/final/logs/error.log` and then remove the original `/project/tmp/error.log`.\n    d.  **If** `/project/tmp/error.log` *does not exist*: Create a new, empty file named `/final/logs/status_ok.txt` using `echo "" > /final/logs/status_ok.txt`.\n6.  **Process Staging File:**\n    a.  Copy the file `/staging/ready.txt` into the final data directory you created (e.g., `/final/data_v1.2/`).\n    b.  After successfully copying it, remove the original `/staging/ready.txt`.\n7.  **Create Summary Report:**\n    a.  Create a new file named `/final/summary.txt`. Write the following exact line into it (replace `<version>` with the actual version): `Archived version <version> to /archive/<version>/`\n    b.  Append a second line to the *same* file (`/final/summary.txt`). The line should be (replace `<target_dir>` with the actual target directory name): `Processed data to /final/<target_dir>/`\n8.  **Preserve Assets:** Ensure the file `/project/assets/logo.png` is not modified, moved, or deleted.\n9.  **Final Location:** Navigate to the `/final` directory. Your final command before signaling completion should leave you in `/final`.\n\nAvailable commands: `ls`, `cd`, `pwd`, `mkdir`, `cat`, `cp`, `rm`, `echo >` (overwrite/create file with text), `echo >>` (append text to file). Remember `cp` copies files, `rm` deletes them. Use `cat` to read file content. Use `echo "text" > filename` or `echo "text" >> filename` for writing.\n\nWhen ALL steps are complete and verified, respond with `TASK_COMPLETE`.\n\nAvailable commands are: ls, cd, pwd, mkdir, cat, cp, rm, echo > (overwrite), echo >> (append)\n\nYou need to figure out the current state of the file system. Start by using commands like \'ls\' or \'pwd\' to understand your current location and see the files/directories present.\n\nPlan your sequence of actions to achieve the goal based on what you discover. Execute one command at a time. After each command you issue, I will respond with the result (e.g., \'Success.\', \'Error: ...\', or the output of \'ls\'/\'pwd\'). Use this result to track the state and decide your next action.\n\nWhen the task is complete according to the goal, respond with the exact phrase \'TASK_COMPLETE\' on a line by itself, potentially after your final action confirmation if applicable.\n\nOutput *only* the command you want to execute next in the following format:\n```action\n<your_command_here>\n```'}], 'model': 'o4-mini', 'temperature': 0.7, 'tools': None}}
+2025-04-16 17:47:07,099 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2025-04-16 17:47:07,100 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:07,100 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-04-16 17:47:07,100 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-04-16 17:47:07,101 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-04-16 17:47:07,101 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:07,216 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Date', b'Wed, 16 Apr 2025 23:47:10 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'247'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-09rbohmh9vvqrn0d7lohsldy'), (b'openai-processing-ms', b'17'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'10000000'), (b'x-ratelimit-remaining-requests', b'9999'), (b'x-ratelimit-remaining-tokens', b'9999022'), (b'x-ratelimit-reset-requests', b'6ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_eb3ebb0587196e66e94cd0eeb542238a'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'CF-Cache-Status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'931790f389e25303-SLC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-04-16 17:47:07,216 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-04-16 17:47:07,217 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-04-16 17:47:07,217 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-04-16 17:47:07,217 - httpcore.http11 - DEBUG - response_closed.started
+2025-04-16 17:47:07,217 - httpcore.http11 - DEBUG - response_closed.complete
+2025-04-16 17:47:07,217 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/chat/completions "400 Bad Request" Headers({'date': 'Wed, 16 Apr 2025 23:47:10 GMT', 'content-type': 'application/json', 'content-length': '247', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-09rbohmh9vvqrn0d7lohsldy', 'openai-processing-ms': '17', 'openai-version': '2020-10-01', 'x-ratelimit-limit-requests': '10000', 'x-ratelimit-limit-tokens': '10000000', 'x-ratelimit-remaining-requests': '9999', 'x-ratelimit-remaining-tokens': '9999022', 'x-ratelimit-reset-requests': '6ms', 'x-ratelimit-reset-tokens': '5ms', 'x-request-id': 'req_eb3ebb0587196e66e94cd0eeb542238a', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '931790f389e25303-SLC', 'alt-svc': 'h3=":443"; ma=86400'})
+2025-04-16 17:47:07,217 - openai._base_client - DEBUG - request_id: req_eb3ebb0587196e66e94cd0eeb542238a
+2025-04-16 17:47:07,217 - openai._base_client - DEBUG - Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1036, in _request
+    response.raise_for_status()
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\httpx\_models.py", line 749, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2025-04-16 17:47:07,218 - openai._base_client - DEBUG - Not retrying
+2025-04-16 17:47:07,218 - openai._base_client - DEBUG - Re-raising status error
+2025-04-16 17:47:07,218 - llm_interface - ERROR - OpenAI chat.completions error: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 131, in _call_chat_api
+    resp = self.client.chat.completions.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\resources\chat\completions\completions.py", line 929, in create
+    return self._post(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1276, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 949, in request
+    return self._request(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1057, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+2025-04-16 17:47:07,219 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 17:47:07,219 - __main__ - INFO - --- Attempt 4 Finished (Duration: 0.12s, Rounds/Turns Ran: 0) ---
+2025-04-16 17:47:07,219 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 17:47:07,219 - __main__ - INFO - Attempt 5 output dir: results\file_system_openai_o4-mini_20250416_174705\attempt_5
+2025-04-16 17:47:07,219 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 17:47:07,220 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:07,220 - __main__ - INFO - --- Starting Attempt 5 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 17:47:07,220 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 17:47:07,220 - __main__ - DEBUG - Environment reset. Initial state description (truncated): You are currently in the '/project/src' directory. Use commands like 'ls', 'pwd', 'cd' to navigate and explore....
+2025-04-16 17:47:07,220 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 17:47:07,220 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 17:47:07,220 - __main__ - DEBUG - Initialized conversational history for file_system...
+2025-04-16 17:47:07,221 - __main__ - INFO - --- Attempt 5, Round/Turn 1/5 ---
+2025-04-16 17:47:07,221 - __main__ - DEBUG - Turn 1: Player = Agent
+2025-04-16 17:47:07,221 - __main__ - DEBUG - Calling conversational API (file_system). Hist len: 1
+2025-04-16 17:47:07,222 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': 'You are an agent interacting with a simulated file system. Your goal is:\nYou are an agent managing a simulated file system. You start in the `/project/src` directory. Your goal requires careful reading, conditional actions, file manipulation, and precise organization.\n\nPerform the following sequence of tasks:\n\n1.  **Read Configuration:** Navigate to the `/project` directory and read the content of the `config.txt` file. Parse this content to find the values for `version` and `target_dir`. Remember these values (e.g., version might be \'1.2\', target_dir might be \'data_v1.2\').\n2.  **Create Archive Directory:** Based on the `version` you found, create a nested directory structure: `/archive/<version>/` (e.g., `/archive/1.2/`). You will need to create `/archive` first if it doesn\'t exist.\n3.  **Create Final Data Directory:** Based on the `target_dir` name you found, create a directory structure: `/final/<target_dir>/` (e.g., `/final/data_v1.2/`). You will need to create `/final` first if it doesn\'t exist.\n4.  **Archive Source Code:**\n    a.  Copy the files `main.py` and `utils.py` from your current directory (`/project/src`) to the archive directory you created (e.g., `/archive/1.2/`).\n    b.  After successfully copying both files, remove the original `main.py` and `utils.py` from `/project/src`.\n5.  **Handle Logs Conditionally:**\n    a.  Check if the file `/project/tmp/error.log` exists.\n    b.  Create the directory `/final/logs` if it doesn\'t already exist.\n    c.  **If** `/project/tmp/error.log` *exists*: Copy it to `/final/logs/error.log` and then remove the original `/project/tmp/error.log`.\n    d.  **If** `/project/tmp/error.log` *does not exist*: Create a new, empty file named `/final/logs/status_ok.txt` using `echo "" > /final/logs/status_ok.txt`.\n6.  **Process Staging File:**\n    a.  Copy the file `/staging/ready.txt` into the final data directory you created (e.g., `/final/data_v1.2/`).\n    b.  After successfully copying it, remove the original `/staging/ready.txt`.\n7.  **Create Summary Report:**\n    a.  Create a new file named `/final/summary.txt`. Write the following exact line into it (replace `<version>` with the actual version): `Archived version <version> to /archive/<version>/`\n    b.  Append a second line to the *same* file (`/final/summary.txt`). The line should be (replace `<target_dir>` with the actual target directory name): `Processed data to /final/<target_dir>/`\n8.  **Preserve Assets:** Ensure the file `/project/assets/logo.png` is not modified, moved, or deleted.\n9.  **Final Location:** Navigate to the `/final` directory. Your final command before signaling completion should leave you in `/final`.\n\nAvailable commands: `ls`, `cd`, `pwd`, `mkdir`, `cat`, `cp`, `rm`, `echo >` (overwrite/create file with text), `echo >>` (append text to file). Remember `cp` copies files, `rm` deletes them. Use `cat` to read file content. Use `echo "text" > filename` or `echo "text" >> filename` for writing.\n\nWhen ALL steps are complete and verified, respond with `TASK_COMPLETE`.\n\nAvailable commands are: ls, cd, pwd, mkdir, cat, cp, rm, echo > (overwrite), echo >> (append)\n\nYou need to figure out the current state of the file system. Start by using commands like \'ls\' or \'pwd\' to understand your current location and see the files/directories present.\n\nPlan your sequence of actions to achieve the goal based on what you discover. Execute one command at a time. After each command you issue, I will respond with the result (e.g., \'Success.\', \'Error: ...\', or the output of \'ls\'/\'pwd\'). Use this result to track the state and decide your next action.\n\nWhen the task is complete according to the goal, respond with the exact phrase \'TASK_COMPLETE\' on a line by itself, potentially after your final action confirmation if applicable.\n\nOutput *only* the command you want to execute next in the following format:\n```action\n<your_command_here>\n```'}], 'model': 'o4-mini', 'temperature': 0.7, 'tools': None}}
+2025-04-16 17:47:07,223 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2025-04-16 17:47:07,223 - httpcore.http11 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:07,223 - httpcore.http11 - DEBUG - send_request_headers.complete
+2025-04-16 17:47:07,223 - httpcore.http11 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-04-16 17:47:07,224 - httpcore.http11 - DEBUG - send_request_body.complete
+2025-04-16 17:47:07,224 - httpcore.http11 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-04-16 17:47:07,314 - httpcore.http11 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 400, b'Bad Request', [(b'Date', b'Wed, 16 Apr 2025 23:47:10 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'247'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-09rbohmh9vvqrn0d7lohsldy'), (b'openai-processing-ms', b'17'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'10000000'), (b'x-ratelimit-remaining-requests', b'9999'), (b'x-ratelimit-remaining-tokens', b'9999022'), (b'x-ratelimit-reset-requests', b'6ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_cd61b834ee83307272af741074da45f7'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'931790f45a9d5303-SLC'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-04-16 17:47:07,314 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-04-16 17:47:07,315 - httpcore.http11 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-04-16 17:47:07,315 - httpcore.http11 - DEBUG - receive_response_body.complete
+2025-04-16 17:47:07,315 - httpcore.http11 - DEBUG - response_closed.started
+2025-04-16 17:47:07,315 - httpcore.http11 - DEBUG - response_closed.complete
+2025-04-16 17:47:07,315 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/chat/completions "400 Bad Request" Headers({'date': 'Wed, 16 Apr 2025 23:47:10 GMT', 'content-type': 'application/json', 'content-length': '247', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-09rbohmh9vvqrn0d7lohsldy', 'openai-processing-ms': '17', 'openai-version': '2020-10-01', 'x-ratelimit-limit-requests': '10000', 'x-ratelimit-limit-tokens': '10000000', 'x-ratelimit-remaining-requests': '9999', 'x-ratelimit-remaining-tokens': '9999022', 'x-ratelimit-reset-requests': '6ms', 'x-ratelimit-reset-tokens': '5ms', 'x-request-id': 'req_cd61b834ee83307272af741074da45f7', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '931790f45a9d5303-SLC', 'alt-svc': 'h3=":443"; ma=86400'})
+2025-04-16 17:47:07,315 - openai._base_client - DEBUG - request_id: req_cd61b834ee83307272af741074da45f7
+2025-04-16 17:47:07,316 - openai._base_client - DEBUG - Encountered httpx.HTTPStatusError
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1036, in _request
+    response.raise_for_status()
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\httpx\_models.py", line 749, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2025-04-16 17:47:07,316 - openai._base_client - DEBUG - Not retrying
+2025-04-16 17:47:07,316 - openai._base_client - DEBUG - Re-raising status error
+2025-04-16 17:47:07,316 - llm_interface - ERROR - OpenAI chat.completions error: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 131, in _call_chat_api
+    resp = self.client.chat.completions.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_utils\_utils.py", line 279, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\resources\chat\completions\completions.py", line 929, in create
+    return self._post(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1276, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 949, in request
+    return self._request(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\_base_client.py", line 1057, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+2025-04-16 17:47:07,317 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 17:47:07,317 - __main__ - INFO - --- Attempt 5 Finished (Duration: 0.10s, Rounds/Turns Ran: 0) ---
+2025-04-16 17:47:07,317 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 17:47:07,317 - __main__ - INFO - --- Benchmark Run Finished ---
+2025-04-16 17:47:07,318 - reporting - DEBUG - --- Categorizing Attempt Results ---
+2025-04-16 17:47:07,318 - reporting - DEBUG - Attempt 1: Score=1, Premature=True -> Categorized as: Error (Premature)
+2025-04-16 17:47:07,318 - reporting - DEBUG - Attempt 2: Score=1, Premature=True -> Categorized as: Error (Premature)
+2025-04-16 17:47:07,318 - reporting - DEBUG - Attempt 3: Score=1, Premature=True -> Categorized as: Error (Premature)
+2025-04-16 17:47:07,318 - reporting - DEBUG - Attempt 4: Score=1, Premature=True -> Categorized as: Error (Premature)
+2025-04-16 17:47:07,318 - reporting - DEBUG - Attempt 5: Score=1, Premature=True -> Categorized as: Error (Premature)
+2025-04-16 17:47:07,318 - reporting - INFO - Metrics calculated: Success=0, Partial=0, Failed (Score 1)=0, Failed (Error)=5, Regressions=0
+2025-04-16 17:47:07,318 - reporting - DEBUG - Final metrics dictionary: {'num_attempts_requested': 5, 'num_attempts_completed': 5, 'num_successful': 0, 'num_partial': 0, 'num_failed_score': 0, 'num_failed_error': 5, 'num_total_failed': 5, 'pass_rate_strict': 0.0, 'pass_rate_partial': 0.0, 'regression_count': 0, 'regression_frequency': 0.0, 'pass@1': 0.0, 'pass@20': 0.0, 'at_least_one_success': 0.0}
+2025-04-16 17:47:07,319 - reporting - DEBUG - Formatting report with metrics: Success=0, Partial=0, FailedScore=0, FailedError=5
+2025-04-16 17:47:07,319 - __main__ - INFO - Final Report:
+--- ToyBench Report ---
+Task          : file_system
+Provider      : openai
+Model         : o4-mini
+Turn Horizon  : 5
+Attempts Run  : 5 / 5
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 0
+Failed (Error)    : 5
+Total Failed      : 5
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Pass@20 (Any success in first 20): 0%
+Success Rate (Any in Run): 0%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
+2025-04-16 17:47:07,321 - reporting - INFO - Results saved to: results\file_system_openai_o4-mini_20250416_174705
+2025-04-16 17:47:07,321 - __main__ - INFO - Results/logs saved in base directory: results\file_system_openai_o4-mini_20250416_174705
+2025-04-16 17:47:07,321 - __main__ - INFO - --- ToyBench Run Complete ---
+2025-04-16 17:47:07,378 - httpcore.connection - DEBUG - close.started
+2025-04-16 17:47:07,379 - httpcore.connection - DEBUG - close.complete

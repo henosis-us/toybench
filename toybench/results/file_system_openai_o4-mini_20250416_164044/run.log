@@ -1,0 +1,128 @@
+2025-04-16 16:40:44,607 - __main__ - INFO - --- ToyBench Run Initializing ---
+2025-04-16 16:40:44,607 - __main__ - INFO - Task: file_system, Provider: openai, Agent Model: o4-mini, Attempts: 5, Max Rounds/Steps: 5
+2025-04-16 16:40:44,607 - __main__ - INFO - Evaluator Model: gemini-1.5-flash-8b
+2025-04-16 16:40:44,607 - __main__ - INFO - Log Level: INFO, Base Output Directory: results\file_system_openai_o4-mini_20250416_164044
+2025-04-16 16:40:44,608 - __main__ - INFO - Loaded prompts for task: file_system
+2025-04-16 16:40:44,617 - llm_interface - INFO - OpenAIInterface initialized with model: o4-mini
+2025-04-16 16:40:44,624 - llm_interface - INFO - OpenAIInterface initialized with model: gemini-1.5-flash-8b
+2025-04-16 16:40:44,624 - __main__ - INFO - --- Starting Benchmark Attempts ---
+2025-04-16 16:40:44,641 - __main__ - INFO - Attempt 1 output dir: results\file_system_openai_o4-mini_20250416_164044\attempt_1
+2025-04-16 16:40:44,641 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:40:44,641 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:44,641 - __main__ - INFO - --- Starting Attempt 1 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:40:44,641 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:44,641 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:40:44,642 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:40:44,642 - __main__ - INFO - --- Attempt 1, Round/Turn 1/5 ---
+2025-04-16 16:40:50,219 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-04-16 16:40:50,235 - __main__ - ERROR - Agent generation error: 'ResponseReasoningItem' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 751, in __getattr__
+    return pydantic_extra[item]
+KeyError: 'get'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 158, in generate_action_conversational
+    return self._call_responses_api(text_input=joined)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 136, in _call_responses_api
+    content_list = first.get("content")
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 753, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+AttributeError: 'ResponseReasoningItem' object has no attribute 'get'
+2025-04-16 16:40:50,237 - __main__ - INFO - --- Attempt 1 Finished (Duration: 5.60s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:40:50,237 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'ResponseReasoningItem' object has no attribute 'get'))
+2025-04-16 16:40:50,255 - __main__ - INFO - Attempt 2 output dir: results\file_system_openai_o4-mini_20250416_164044\attempt_2
+2025-04-16 16:40:50,255 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:40:50,255 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:50,255 - __main__ - INFO - --- Starting Attempt 2 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:40:50,255 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:50,255 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:40:50,256 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:40:50,256 - __main__ - INFO - --- Attempt 2, Round/Turn 1/5 ---
+2025-04-16 16:40:53,706 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-04-16 16:40:53,707 - __main__ - ERROR - Agent generation error: 'ResponseReasoningItem' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 751, in __getattr__
+    return pydantic_extra[item]
+KeyError: 'get'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 158, in generate_action_conversational
+    return self._call_responses_api(text_input=joined)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 136, in _call_responses_api
+    content_list = first.get("content")
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 753, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+AttributeError: 'ResponseReasoningItem' object has no attribute 'get'
+2025-04-16 16:40:53,708 - __main__ - INFO - --- Attempt 2 Finished (Duration: 3.45s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:40:53,708 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'ResponseReasoningItem' object has no attribute 'get'))
+2025-04-16 16:40:53,709 - __main__ - INFO - Attempt 3 output dir: results\file_system_openai_o4-mini_20250416_164044\attempt_3
+2025-04-16 16:40:53,709 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:40:53,709 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:53,709 - __main__ - INFO - --- Starting Attempt 3 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:40:53,709 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:53,709 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:40:53,709 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:40:53,710 - __main__ - INFO - --- Attempt 3, Round/Turn 1/5 ---
+2025-04-16 16:40:57,285 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-04-16 16:40:57,287 - __main__ - ERROR - Agent generation error: 'ResponseReasoningItem' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 751, in __getattr__
+    return pydantic_extra[item]
+KeyError: 'get'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 158, in generate_action_conversational
+    return self._call_responses_api(text_input=joined)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 136, in _call_responses_api
+    content_list = first.get("content")
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\pydantic\main.py", line 753, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+AttributeError: 'ResponseReasoningItem' object has no attribute 'get'
+2025-04-16 16:40:57,288 - __main__ - INFO - --- Attempt 3 Finished (Duration: 3.58s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:40:57,288 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'ResponseReasoningItem' object has no attribute 'get'))
+2025-04-16 16:40:57,289 - __main__ - INFO - Attempt 4 output dir: results\file_system_openai_o4-mini_20250416_164044\attempt_4
+2025-04-16 16:40:57,289 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:40:57,289 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:57,289 - __main__ - INFO - --- Starting Attempt 4 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:40:57,289 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:40:57,289 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:40:57,289 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:40:57,289 - __main__ - INFO - --- Attempt 4, Round/Turn 1/5 ---
+2025-04-16 16:41:04,016 - __main__ - WARNING - --- Run interrupted by user during attempt 4 ---
+2025-04-16 16:41:04,017 - __main__ - INFO - --- Benchmark Run Finished ---
+2025-04-16 16:41:04,017 - reporting - INFO - Metrics calculated: Success=0, Partial=0, Failed (Score 1)=0, Failed (Error)=4, Regressions=0
+2025-04-16 16:41:04,018 - __main__ - INFO - Final Report:
+--- ToyBench Report ---
+Task          : file_system
+Provider      : openai
+Model         : o4-mini
+Turn Horizon  : 5
+Attempts Run  : 4 / 5
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 0
+Failed (Error)    : 4
+Total Failed      : 4
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Pass@20 (Any success in first 20): 0%
+Success Rate (Any in Run): 0%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
+2025-04-16 16:41:04,019 - reporting - INFO - Results saved to: results\file_system_openai_o4-mini_20250416_164044
+2025-04-16 16:41:04,019 - __main__ - INFO - Results/logs saved in base directory: results\file_system_openai_o4-mini_20250416_164044
+2025-04-16 16:41:04,020 - __main__ - INFO - --- ToyBench Run Complete ---

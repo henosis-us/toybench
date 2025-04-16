@@ -1,0 +1,1 @@
+{"attempt_id": 1, "score": 1, "failed": true, "premature_failure": true, "failure_reason": "User interrupt", "success": false, "final_outcome_description": "Interrupted by user", "regressions_detected": false, "rounds_completed": 0, "agent_made_invalid_moves": null, "duration_seconds": 11.586140632629395, "history": [], "final_eval_input_summary": "N/A"}

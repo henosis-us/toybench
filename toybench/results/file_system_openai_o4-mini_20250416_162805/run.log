@@ -1,0 +1,127 @@
+2025-04-16 16:28:05,971 - __main__ - INFO - --- ToyBench Run Initializing ---
+2025-04-16 16:28:05,971 - __main__ - INFO - Task: file_system, Provider: openai, Agent Model: o4-mini, Attempts: 5, Max Rounds/Steps: 5
+2025-04-16 16:28:05,971 - __main__ - INFO - Evaluator Model: gemini-1.5-flash-8b
+2025-04-16 16:28:05,971 - __main__ - INFO - Log Level: INFO, Base Output Directory: results\file_system_openai_o4-mini_20250416_162805
+2025-04-16 16:28:05,971 - __main__ - INFO - Loaded prompts for task: file_system
+2025-04-16 16:28:05,973 - llm_interface - INFO - OpenAIInterface initialized with model: o4-mini
+2025-04-16 16:28:05,973 - llm_interface - INFO - OpenAIInterface initialized with model: gemini-1.5-flash-8b
+2025-04-16 16:28:05,973 - __main__ - INFO - --- Starting Benchmark Attempts ---
+2025-04-16 16:28:05,973 - __main__ - INFO - Attempt 1 output dir: results\file_system_openai_o4-mini_20250416_162805\attempt_1
+2025-04-16 16:28:05,973 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:28:05,973 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,973 - __main__ - INFO - --- Starting Attempt 1 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:28:05,974 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,974 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:28:05,974 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:28:05,974 - __main__ - INFO - --- Attempt 1, Round/Turn 1/5 ---
+2025-04-16 16:28:05,974 - __main__ - ERROR - Agent generation error: 'OpenAIInterface' object has no attribute 'model'
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 175, in generate_action_conversational
+    return self._call_responses_api(input_data=inputs)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 128, in _call_responses_api
+    "model": self.model,
+AttributeError: 'OpenAIInterface' object has no attribute 'model'
+2025-04-16 16:28:05,975 - __main__ - INFO - --- Attempt 1 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:28:05,975 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'OpenAIInterface' object has no attribute 'model'))
+2025-04-16 16:28:05,976 - __main__ - INFO - Attempt 2 output dir: results\file_system_openai_o4-mini_20250416_162805\attempt_2
+2025-04-16 16:28:05,976 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:28:05,976 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,977 - __main__ - INFO - --- Starting Attempt 2 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:28:05,977 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,977 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:28:05,977 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:28:05,977 - __main__ - INFO - --- Attempt 2, Round/Turn 1/5 ---
+2025-04-16 16:28:05,977 - __main__ - ERROR - Agent generation error: 'OpenAIInterface' object has no attribute 'model'
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 175, in generate_action_conversational
+    return self._call_responses_api(input_data=inputs)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 128, in _call_responses_api
+    "model": self.model,
+AttributeError: 'OpenAIInterface' object has no attribute 'model'
+2025-04-16 16:28:05,978 - __main__ - INFO - --- Attempt 2 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:28:05,978 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'OpenAIInterface' object has no attribute 'model'))
+2025-04-16 16:28:05,978 - __main__ - INFO - Attempt 3 output dir: results\file_system_openai_o4-mini_20250416_162805\attempt_3
+2025-04-16 16:28:05,978 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:28:05,979 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,979 - __main__ - INFO - --- Starting Attempt 3 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:28:05,979 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,979 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:28:05,979 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:28:05,979 - __main__ - INFO - --- Attempt 3, Round/Turn 1/5 ---
+2025-04-16 16:28:05,979 - __main__ - ERROR - Agent generation error: 'OpenAIInterface' object has no attribute 'model'
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 175, in generate_action_conversational
+    return self._call_responses_api(input_data=inputs)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 128, in _call_responses_api
+    "model": self.model,
+AttributeError: 'OpenAIInterface' object has no attribute 'model'
+2025-04-16 16:28:05,980 - __main__ - INFO - --- Attempt 3 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:28:05,980 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'OpenAIInterface' object has no attribute 'model'))
+2025-04-16 16:28:05,980 - __main__ - INFO - Attempt 4 output dir: results\file_system_openai_o4-mini_20250416_162805\attempt_4
+2025-04-16 16:28:05,980 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:28:05,981 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,981 - __main__ - INFO - --- Starting Attempt 4 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:28:05,981 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,981 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:28:05,981 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:28:05,981 - __main__ - INFO - --- Attempt 4, Round/Turn 1/5 ---
+2025-04-16 16:28:05,981 - __main__ - ERROR - Agent generation error: 'OpenAIInterface' object has no attribute 'model'
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 175, in generate_action_conversational
+    return self._call_responses_api(input_data=inputs)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 128, in _call_responses_api
+    "model": self.model,
+AttributeError: 'OpenAIInterface' object has no attribute 'model'
+2025-04-16 16:28:05,982 - __main__ - INFO - --- Attempt 4 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:28:05,982 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'OpenAIInterface' object has no attribute 'model'))
+2025-04-16 16:28:05,982 - __main__ - INFO - Attempt 5 output dir: results\file_system_openai_o4-mini_20250416_162805\attempt_5
+2025-04-16 16:28:05,982 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:28:05,983 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,983 - __main__ - INFO - --- Starting Attempt 5 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:28:05,983 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:28:05,983 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:28:05,983 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:28:05,983 - __main__ - INFO - --- Attempt 5, Round/Turn 1/5 ---
+2025-04-16 16:28:05,983 - __main__ - ERROR - Agent generation error: 'OpenAIInterface' object has no attribute 'model'
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 325, in run_attempt
+    agent_response_text = agent.generate_action_conversational(conversation_history)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 175, in generate_action_conversational
+    return self._call_responses_api(input_data=inputs)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 128, in _call_responses_api
+    "model": self.model,
+AttributeError: 'OpenAIInterface' object has no attribute 'model'
+2025-04-16 16:28:05,984 - __main__ - INFO - --- Attempt 5 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:28:05,984 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent generation error: 'OpenAIInterface' object has no attribute 'model'))
+2025-04-16 16:28:05,984 - __main__ - INFO - --- Benchmark Run Finished ---
+2025-04-16 16:28:05,984 - reporting - INFO - Metrics calculated: Success=0, Partial=0, Failed (Score 1)=0, Failed (Error)=5, Regressions=0
+2025-04-16 16:28:05,985 - __main__ - INFO - Final Report:
+--- ToyBench Report ---
+Task          : file_system
+Provider      : openai
+Model         : o4-mini
+Turn Horizon  : 5
+Attempts Run  : 5 / 5
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 0
+Failed (Error)    : 5
+Total Failed      : 5
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Pass@20 (Any success in first 20): 0%
+Success Rate (Any in Run): 0%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
+2025-04-16 16:28:05,986 - reporting - INFO - Results saved to: results\file_system_openai_o4-mini_20250416_162805
+2025-04-16 16:28:05,986 - __main__ - INFO - Results/logs saved in base directory: results\file_system_openai_o4-mini_20250416_162805
+2025-04-16 16:28:05,986 - __main__ - INFO - --- ToyBench Run Complete ---

@@ -1,0 +1,18 @@
+--- ToyBench Report ---
+Task          : file_system
+Provider      : openai
+Model         : o4-mini
+Turn Horizon  : 5
+Attempts Run  : 5 / 5
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 0
+Failed (Error)    : 5
+Total Failed      : 5
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Pass@20 (Any success in first 20): 0%
+Success Rate (Any in Run): 0%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---

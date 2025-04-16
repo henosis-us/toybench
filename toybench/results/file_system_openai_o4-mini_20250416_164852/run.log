@@ -1,0 +1,80 @@
+2025-04-16 16:48:52,277 - __main__ - INFO - --- ToyBench Run Initializing ---
+2025-04-16 16:48:52,277 - __main__ - INFO - Task: file_system, Provider: openai, Agent Model: o4-mini, Attempts: 5, Max Rounds/Steps: 5
+2025-04-16 16:48:52,278 - __main__ - INFO - Evaluator Model: gemini-1.5-flash-8b
+2025-04-16 16:48:52,278 - __main__ - INFO - Log Level: INFO, Base Output Directory: results\file_system_openai_o4-mini_20250416_164852
+2025-04-16 16:48:52,278 - __main__ - INFO - Loaded prompts for task: file_system
+2025-04-16 16:48:52,287 - llm_interface - INFO - OpenAIInterface initialised with model: o4-mini
+2025-04-16 16:48:52,295 - llm_interface - INFO - OpenAIInterface initialised with model: gemini-1.5-flash-8b
+2025-04-16 16:48:52,296 - __main__ - INFO - --- Starting Benchmark Attempts ---
+2025-04-16 16:48:52,296 - __main__ - INFO - Attempt 1 output dir: results\file_system_openai_o4-mini_20250416_164852\attempt_1
+2025-04-16 16:48:52,297 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:48:52,297 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:48:52,297 - __main__ - INFO - --- Starting Attempt 1 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:48:52,297 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:48:52,297 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:48:52,298 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:48:52,298 - __main__ - INFO - --- Attempt 1, Round/Turn 1/5 ---
+2025-04-16 16:48:54,480 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-04-16 16:48:54,496 - llm_interface - WARNING - /responses output[0] has no content list
+2025-04-16 16:48:54,497 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:48:54,497 - __main__ - INFO - --- Attempt 1 Finished (Duration: 2.20s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:48:54,497 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:48:54,497 - __main__ - INFO - Attempt 2 output dir: results\file_system_openai_o4-mini_20250416_164852\attempt_2
+2025-04-16 16:48:54,497 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:48:54,499 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:48:54,499 - __main__ - INFO - --- Starting Attempt 2 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:48:54,499 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:48:54,499 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:48:54,499 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:48:54,499 - __main__ - INFO - --- Attempt 2, Round/Turn 1/5 ---
+2025-04-16 16:49:04,457 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-04-16 16:49:04,458 - llm_interface - WARNING - /responses output[0] has no content list
+2025-04-16 16:49:04,458 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:49:04,458 - __main__ - INFO - --- Attempt 2 Finished (Duration: 9.96s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:49:04,458 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:49:04,458 - __main__ - INFO - Attempt 3 output dir: results\file_system_openai_o4-mini_20250416_164852\attempt_3
+2025-04-16 16:49:04,459 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:49:04,459 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:49:04,459 - __main__ - INFO - --- Starting Attempt 3 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:49:04,459 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:49:04,459 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:49:04,459 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:49:04,459 - __main__ - INFO - --- Attempt 3, Round/Turn 1/5 ---
+2025-04-16 16:49:07,821 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2025-04-16 16:49:07,822 - llm_interface - WARNING - /responses output[0] has no content list
+2025-04-16 16:49:07,823 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:49:07,823 - __main__ - INFO - --- Attempt 3 Finished (Duration: 3.36s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:49:07,823 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:49:07,823 - __main__ - INFO - Attempt 4 output dir: results\file_system_openai_o4-mini_20250416_164852\attempt_4
+2025-04-16 16:49:07,824 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:49:07,824 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:49:07,824 - __main__ - INFO - --- Starting Attempt 4 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:49:07,824 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:49:07,824 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:49:07,824 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:49:07,825 - __main__ - INFO - --- Attempt 4, Round/Turn 1/5 ---
+2025-04-16 16:49:10,548 - __main__ - WARNING - --- Run interrupted by user during attempt 4 ---
+2025-04-16 16:49:10,549 - __main__ - INFO - --- Benchmark Run Finished ---
+2025-04-16 16:49:10,549 - reporting - INFO - Metrics calculated: Success=0, Partial=0, Failed (Score 1)=0, Failed (Error)=4, Regressions=0
+2025-04-16 16:49:10,549 - __main__ - INFO - Final Report:
+--- ToyBench Report ---
+Task          : file_system
+Provider      : openai
+Model         : o4-mini
+Turn Horizon  : 5
+Attempts Run  : 4 / 5
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 0
+Failed (Error)    : 4
+Total Failed      : 4
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Pass@20 (Any success in first 20): 0%
+Success Rate (Any in Run): 0%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
+2025-04-16 16:49:10,551 - reporting - INFO - Results saved to: results\file_system_openai_o4-mini_20250416_164852
+2025-04-16 16:49:10,551 - __main__ - INFO - Results/logs saved in base directory: results\file_system_openai_o4-mini_20250416_164852
+2025-04-16 16:49:10,551 - __main__ - INFO - --- ToyBench Run Complete ---

@@ -1,0 +1,12 @@
+2025-04-16 16:31:44,777 - __main__ - INFO - --- ToyBench Run Initializing ---
+2025-04-16 16:31:44,778 - __main__ - INFO - Task: file_system, Provider: openai, Agent Model: o4-mini, Attempts: 5, Max Rounds/Steps: 5
+2025-04-16 16:31:44,778 - __main__ - INFO - Evaluator Model: gemini-1.5-flash-8b
+2025-04-16 16:31:44,778 - __main__ - INFO - Log Level: INFO, Base Output Directory: results\file_system_openai_o4-mini_20250416_163144
+2025-04-16 16:31:44,779 - __main__ - INFO - Loaded prompts for task: file_system
+2025-04-16 16:31:44,779 - __main__ - ERROR - Init failed: Unexpected error during LLM/prompt setup. Can't instantiate abstract class OpenAIInterface with abstract method generate_action
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 709, in main
+    agent_llm      = get_llm_interface(args.provider, api_key, agent_model)
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\toybench_cli.py", line 136, in get_llm_interface
+    return OpenAIInterface(api_key=api_key, model_name=model_name)
+TypeError: Can't instantiate abstract class OpenAIInterface with abstract method generate_action

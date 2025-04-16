@@ -1,0 +1,14 @@
+{
+    "task": "file_system",
+    "provider": "openai",
+    "model": null,
+    "attempts": 5,
+    "rounds": 5,
+    "evaluator_model": null,
+    "log_level": "DEBUG",
+    "output_dir": "results",
+    "agent_model_used": "o4-mini",
+    "evaluator_model_used": "gemini-1.5-flash-8b",
+    "openai_api_key_loaded": true,
+    "base_output_directory": "results\\file_system_openai_o4-mini_20250416_165256"
+}

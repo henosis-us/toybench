@@ -1,0 +1,207 @@
+2025-04-16 16:25:23,730 - __main__ - INFO - --- ToyBench Run Initializing ---
+2025-04-16 16:25:23,730 - __main__ - INFO - Task: file_system, Provider: openai, Agent Model: o4-mini, Attempts: 5, Max Rounds/Steps: 5
+2025-04-16 16:25:23,730 - __main__ - INFO - Evaluator Model: gemini-1.5-flash-8b
+2025-04-16 16:25:23,730 - __main__ - INFO - Log Level: INFO, Base Output Directory: results\file_system_openai_o4-mini_20250416_162523
+2025-04-16 16:25:23,754 - __main__ - INFO - Loaded prompts for task: file_system
+2025-04-16 16:25:23,754 - llm_interface - INFO - OpenAIInterface initialized with model: o4-mini
+2025-04-16 16:25:23,754 - llm_interface - INFO - OpenAIInterface initialized with model: gemini-1.5-flash-8b
+2025-04-16 16:25:23,754 - __main__ - INFO - --- Starting Benchmark Attempts ---
+2025-04-16 16:25:23,755 - __main__ - INFO - Attempt 1 output dir: results\file_system_openai_o4-mini_20250416_162523\attempt_1
+2025-04-16 16:25:23,755 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:25:23,755 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,755 - __main__ - INFO - --- Starting Attempt 1 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:25:23,755 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,755 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:25:23,755 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:25:23,756 - __main__ - INFO - --- Attempt 1, Round/Turn 1/5 ---
+2025-04-16 16:25:23,756 - llm_interface - ERROR - OpenAI ChatCompletion error: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 127, in _chat_call
+    resp = openai.ChatCompletion.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\lib\_old_api.py", line 39, in __call__
+    raise APIRemovedInV1(symbol=self._symbol)
+openai.lib._old_api.APIRemovedInV1: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+
+2025-04-16 16:25:23,757 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:25:23,757 - __main__ - INFO - --- Attempt 1 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:25:23,757 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:25:23,757 - __main__ - INFO - Attempt 2 output dir: results\file_system_openai_o4-mini_20250416_162523\attempt_2
+2025-04-16 16:25:23,758 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:25:23,758 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,758 - __main__ - INFO - --- Starting Attempt 2 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:25:23,758 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,758 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:25:23,758 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:25:23,758 - __main__ - INFO - --- Attempt 2, Round/Turn 1/5 ---
+2025-04-16 16:25:23,759 - llm_interface - ERROR - OpenAI ChatCompletion error: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 127, in _chat_call
+    resp = openai.ChatCompletion.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\lib\_old_api.py", line 39, in __call__
+    raise APIRemovedInV1(symbol=self._symbol)
+openai.lib._old_api.APIRemovedInV1: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+
+2025-04-16 16:25:23,759 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:25:23,759 - __main__ - INFO - --- Attempt 2 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:25:23,759 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:25:23,760 - __main__ - INFO - Attempt 3 output dir: results\file_system_openai_o4-mini_20250416_162523\attempt_3
+2025-04-16 16:25:23,760 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:25:23,760 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,760 - __main__ - INFO - --- Starting Attempt 3 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:25:23,760 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,760 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:25:23,761 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:25:23,761 - __main__ - INFO - --- Attempt 3, Round/Turn 1/5 ---
+2025-04-16 16:25:23,761 - llm_interface - ERROR - OpenAI ChatCompletion error: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 127, in _chat_call
+    resp = openai.ChatCompletion.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\lib\_old_api.py", line 39, in __call__
+    raise APIRemovedInV1(symbol=self._symbol)
+openai.lib._old_api.APIRemovedInV1: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+
+2025-04-16 16:25:23,761 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:25:23,762 - __main__ - INFO - --- Attempt 3 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:25:23,762 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:25:23,763 - __main__ - INFO - Attempt 4 output dir: results\file_system_openai_o4-mini_20250416_162523\attempt_4
+2025-04-16 16:25:23,763 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:25:23,763 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,763 - __main__ - INFO - --- Starting Attempt 4 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:25:23,763 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,763 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:25:23,764 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:25:23,764 - __main__ - INFO - --- Attempt 4, Round/Turn 1/5 ---
+2025-04-16 16:25:23,764 - llm_interface - ERROR - OpenAI ChatCompletion error: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 127, in _chat_call
+    resp = openai.ChatCompletion.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\lib\_old_api.py", line 39, in __call__
+    raise APIRemovedInV1(symbol=self._symbol)
+openai.lib._old_api.APIRemovedInV1: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+
+2025-04-16 16:25:23,764 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:25:23,764 - __main__ - INFO - --- Attempt 4 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:25:23,764 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:25:23,766 - __main__ - INFO - Attempt 5 output dir: results\file_system_openai_o4-mini_20250416_162523\attempt_5
+2025-04-16 16:25:23,766 - __main__ - INFO - Creating environment for task: file_system
+2025-04-16 16:25:23,766 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,766 - __main__ - INFO - --- Starting Attempt 5 (Task: file_system, Max Rounds/Steps: 5) ---
+2025-04-16 16:25:23,766 - environments.file_system_env - INFO - EXTREME Complex File System Environment Reset. Agent starts in: /project/src
+2025-04-16 16:25:23,766 - __main__ - INFO - Task 'file_system' runs until completion/error or FS internal limit. --rounds (5) acts as safeguard.
+2025-04-16 16:25:23,766 - __main__ - INFO - Using conversational API for task 'file_system'.
+2025-04-16 16:25:23,766 - __main__ - INFO - --- Attempt 5, Round/Turn 1/5 ---
+2025-04-16 16:25:23,766 - llm_interface - ERROR - OpenAI ChatCompletion error: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+Traceback (most recent call last):
+  File "C:\Users\matth\Documents\interesting\ToyBench\toybench\llm_interface.py", line 127, in _chat_call
+    resp = openai.ChatCompletion.create(
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python310\lib\site-packages\openai\lib\_old_api.py", line 39, in __call__
+    raise APIRemovedInV1(symbol=self._symbol)
+openai.lib._old_api.APIRemovedInV1: 
+
+You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
+
+You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
+
+Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
+
+A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+
+2025-04-16 16:25:23,767 - __main__ - ERROR - Agent failed response (API Error?).
+2025-04-16 16:25:23,767 - __main__ - INFO - --- Attempt 5 Finished (Duration: 0.00s, Rounds/Turns Ran: 0) ---
+2025-04-16 16:25:23,767 - __main__ - INFO - Final Score: 1 (Fail (Premature: Agent LLM failed))
+2025-04-16 16:25:23,767 - __main__ - INFO - --- Benchmark Run Finished ---
+2025-04-16 16:25:23,767 - reporting - INFO - Metrics calculated: Success=0, Partial=0, Failed (Score 1)=0, Failed (Error)=5, Regressions=0
+2025-04-16 16:25:23,768 - __main__ - INFO - Final Report:
+--- ToyBench Report ---
+Task          : file_system
+Provider      : openai
+Model         : o4-mini
+Turn Horizon  : 5
+Attempts Run  : 5 / 5
+-------------------------
+Success (Score 3) : 0
+Partial (Score 2) : 0
+Failed (Score 1)  : 0
+Failed (Error)    : 5
+Total Failed      : 5
+-------------------------
+Pass Rate (Pass@1): 0.00%
+Pass@20 (Any success in first 20): 0%
+Success Rate (Any in Run): 0%
+Regression Freq.  : 0.00% (0 attempts)
+--- End Report ---
+2025-04-16 16:25:23,770 - reporting - INFO - Results saved to: results\file_system_openai_o4-mini_20250416_162523
+2025-04-16 16:25:23,770 - __main__ - INFO - Results/logs saved in base directory: results\file_system_openai_o4-mini_20250416_162523
+2025-04-16 16:25:23,770 - __main__ - INFO - --- ToyBench Run Complete ---
