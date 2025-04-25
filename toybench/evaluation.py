@@ -7,7 +7,7 @@ from utils import parse_llm_score
 # Import necessary helper from browser utils
 try:
     # Ensure this imports the *real* function now
-    from utils.browser_utils import encode_file_inline_data_gemini
+    from browser_utils import encode_file_inline_data_gemini
     BROWSER_UTILS_AVAILABLE = True
 except ImportError:
     BROWSER_UTILS_AVAILABLE = False
