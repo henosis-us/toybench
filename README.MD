@@ -4,7 +4,7 @@
 
 **ToyBench** evaluates the capability of Large Language Models (LLMs) to **plan, take actions agentically over time, and refine outputs based on feedback**. Our vision is to create a standardized method for measuring how well LLMs translate complex requirements and high-level goals into tangible, **"valid" sequences of actions or artifacts** within defined environments, assessed through a practical, multi-step process that may involve interaction and iteration.
 
-Benchmark runs across **Tic-Tac-Toe** (strategic planning, unlimited turns), **File System** management (complex instruction following, state tracking, 50-round horizon), and iterative **Solar System** generation (visual refinement, code generation, multimodal feedback, 3-round horizon) demonstrate significant variation in capabilities between different models and highlight the distinct challenges posed by each task type and time horizon.
+Benchmark runs across **Tic-Tac-Toe** (strategic planning, multi-turn horizon), **File System** management (complex instruction following, state tracking, high-round horizon), and iterative **Solar System** generation (visual refinement, code generation, multimodal feedback, limited-round horizon) demonstrate significant variation in capabilities between different models and providers and highlight the distinct challenges posed by each task type and time horizon.
 
 **Core Goals:**
 
@@ -50,89 +50,125 @@ ToyBench uses interaction loops and outcome-based scoring:
 
 *   **`pass@1` (Reliability):** `(# Successful Attempts) / (Total Attempts Completed)`. Average success rate per try.
 *   **`pass@k` / `pass@20` (Capability):** 100% if *at least one* of the first `k` (typically 20) attempts succeeded, 0% otherwise. Often labeled "Any Success in Run".
-*   **Overall ToyBench Score:** Can be calculated as the **Average `pass@1` score across all included tasks** *if run with a consistent round limit*. The results presented below use different effective horizons per task (TTT: Unlimited, FS: 50 MAX, SolarGen: 3), making a single overall score less directly comparable. Performance should be assessed considering the specific task constraints and relative strengths.
+*   **Overall ToyBench Score:** Can be calculated as the **Average `pass@1` score across all included tasks** *if run with a consistent round limit*. The results presented below use different effective horizons per task (TTT: 5/10/Unlimited, FS: 10/35/50, SolarGen: 3), making a single overall score less directly comparable. Performance should be assessed considering the specific task constraints and relative strengths.
 
 ## Overall Performance Summary (Varied Horizons)
 
-This table summarizes the performance of models tested across Tic-Tac-Toe (Unlimited Rounds), FileSystem, and SolarGen (3 Rounds). The "Overall Score" represents the average `pass@1` across these tasks. *Note: `gemini-2.0-flash-thinking-exp` is excluded from this overall summary due to missing FileSystem data.* Results are based on 20 attempts per task.
+This table summarizes the performance of models tested across Tic-Tac-Toe, FileSystem, and SolarGen. The "Overall Score" represents the average `pass@1` across these three tasks based on available 20/20 runs. Models are only included if they have a completed run (20 attempts) for all three tasks. Grok "fast" variants are grouped with their base models for this summary.
 
-| Model                      | Overall Score (Avg. `pass@1`) | Notes                                                                     |
-| :------------------------- | :---------------------------- | :------------------------------------------------------------------------ |
-| `gemini-2.5-pro-exp-03-25` | **30.0%**                     | Strongest on TTT, capable on SolarGen, low `pass@1` but high partial on FS. |
-| `gemini-2.0-flash`         | **28.3%**                     | Excellent on FS, but struggled significantly on TTT and SolarGen.         |
-| `gemini-2.0-flash-lite`    | **25.0%**                     | Balanced moderate performance on TTT/FS, but failed SolarGen `pass@1`.    |
-| `gemini-1.5-flash-8b`      | **0.0%**                      | Failed to achieve strict success (Score 3) on any task in these tests.    |
+| Model                            | Provider        | Overall Score (Avg. `pass@1`) | Notes                                                                                                                               |
+| :------------------------------- | :-------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| `grok-3-beta`                    | grok            | **33.33%**                    | Top performer overall when grouping 'fast' variants. Achieved perfect `pass@1` on FileSystem (grok-3-fast-beta).                                    |
+| `gemini-2.5-flash-preview-04-17` | gemini          | **35.00%**                    | Strongest Gemini Flash variant overall. Varied performance across tasks.                                                              |
+| `grok-3-mini-beta`               | grok            | **35.00%**                    | Tied for highest overall score. Excellent on Tic-Tac-Toe, but struggled on FileSystem and SolarGen.                               |
+| `gemini-2.5-pro-exp-03-25`       | gemini          | **31.67%**                    | Strongest Gemini Pro variant overall. Good strategic planning (TTT), capable iterative refinement (SolarGen), but lower `pass@1` on FS. |
+| `gemini-2.0-flash`               | gemini          | **28.33%**                    | Excels on FileSystem, but struggled significantly on Tic-Tac-Toe and SolarGen.                                                      |
+| `gemini-2.0-flash-lite`          | gemini          | **25.00%**                    | Balanced moderate performance on TTT/FS, but failed SolarGen `pass@1`.                                                              |
+| `deepseek-chat-B1`               | quality_compute | **21.67%**                    | Achieved some success on FS and TTT, but struggled on SolarGen.                                                                     |
+| `gpt-4.1-nano`                   | openai          | **1.67%**                     | Generally low `pass@1` across tasks, with minimal success observed.                                                                 |
+| `gemini-1.5-flash-8b`            | gemini          | **0.00%**                     | Failed to achieve strict success (Score 3) on any task in these tests.                                                              |
 
 **Interpretation:**
 
-*   The benchmark effectively differentiates model capabilities across diverse agentic challenges and horizons.
-*   No single model excelled universally. `gemini-2.5-pro-exp` showed the best average performance, driven by strong strategic planning (TTT) and visual iteration capability (SolarGen), though its reliability on complex instruction following (FS `pass@1`) was lower than Flash likely due to the thinking step 2.5 pro engages in.
-*   `gemini-2.0-flash` demonstrated exceptional proficiency in the highly structured `FileSystem` task but lacked the planning depth for TTT or the iterative refinement ability for `SolarGen`.
-*   The 3-round horizon for SolarGen still proved challenging, with only `gemini-2.5-pro-exp` achieving any strict success (`pass@1`).
-
----
+*   The benchmark effectively differentiates model capabilities across diverse agentic challenges and horizons, including models from different providers.
+*   No single model or provider excelled universally. Grok models (specifically grok-3-beta via its fast variant and grok-3-mini-beta) and the latest Gemini Flash variant (`gemini-2.5-flash-preview-04-17`) show the strongest average performance, though their strengths lie in different tasks.
+*   `grok-3-beta` (via `grok-3-fast-beta`) demonstrated exceptional proficiency in the highly structured `FileSystem` task, achieving a perfect `pass@1` score.
+*   `grok-3-mini-beta` showed remarkable strategic capability on `Tic-Tac-Toe` (90% `pass@1`).
+*   Iterative tasks like `SolarGen` remain challenging across the board, with very few models achieving a `pass@1` score, even with higher turn horizons. `gemini-2.5-pro-exp` was the only model among those tested across all three tasks to achieve any strict success (`pass@1`) on `SolarGen`, albeit unreliably.
+*   The `quality_compute` provider models show varying performance, with `deepseek-chat-B1` achieving partial and some full successes, while `deepseek-reasoner-B1` struggled.
 
 ## Task-Specific Performance Details
 
-Below are detailed results for each task, comparing all models tested under the specific round constraints reported in the logs. (20 attempts per model).
+Below are detailed results for each task, comparing all models tested under the specific round constraints reported in the logs, filtering for runs with 20/20 attempts unless noted otherwise.
 
 ### Task: Tic-Tac-Toe (vs Optimal Opponent)
 
-*   **Rounds:** Unlimited (Game Completion)
+*   **Rounds:** Typically 5 or 10 turns max (implicitly unlimited until game ends in some runs).
 *   *Tests strategic planning, rule adherence, and goal achievement.*
 
-| Model                             | `pass@1` (Win/Draw, No Invalid) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count |
-| :-------------------------------- | :------------------------------ | :---------------------------- | :------------------------------ |
-| `gemini-2.5-pro-exp-03-25`        | **65.0%**                       | 100%                          | 0                               |
-| `gemini-2.0-flash-thinking-exp`\* | 35.0%                           | 100%                          | 4                               |
-| `gemini-2.0-flash-lite`           | 10.0%                           | 100%                          | 0                               |
-| `gemini-1.5-flash-8b`             | 0.0%                            | 0%                            | 0                               |
-| `gemini-2.0-flash`                | 0.0%                            | 0%                            | 0                               |
-*(`*` Model tested but excluded from overall average due to incomplete data across all tasks)*
+| Model                                    | Provider        | Turn Horizon | Attempts Run | `pass@1` (Win/Draw, No Invalid) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count | Failed (Score 1) Count | Failed (Error) Count |
+| :--------------------------------------- | :-------------- | :----------- | :----------- | :------------------------------ | :---------------------------- | :------------------------------ | :--------------------- | :------------------- |
+| `grok-3-mini-beta`                       | grok            | 5            | 20 / 20      | **90.00%**                      | 100%                          | 2                               | 0                      | 0                    |
+| `o3`                                     | openai          | 5            | 20 / 20      | 85.00%                          | 100%                          | 1                               | 2                      | 0                    |
+| `gemini-2.5-pro-exp-03-25`               | gemini          | 10           | 20 / 20      | 65.00%                          | 100%                          | 0                               | 7                      | 0                    |
+| `deepseek-chat-B1`                       | quality_compute | 5            | 20 / 20      | 25.00%                          | 100%                          | 10                              | 1                      | 4                    |
+| `o4-mini`                                | openai          | 5            | 20 / 20      | 20.00%                          | 100%                          | 13                              | 3                      | 0                    |
+| `quality_compute/deepseek-reasoner-B1`   | quality_compute | 5            | 20 / 20      | 10.00%                          | 100%                          | 17                              | 1                      | 0                    |
+| `gemini-2.0-flash-lite`                  | gemini          | 10           | 20 / 20      | 10.00%                          | 100%                          | 0                               | 18                     | 0                    |
+| `gpt-4.1-nano`                           | openai          | 5            | 20 / 20      | 5.00%                           | 100%                          | 0                               | 19                     | 0                    |
+| `quality_compute/gpt-4.1-nano-B32`       | quality_compute | 5            | 20 / 20      | 5.00%                           | 100%                          | 19                              | 0                      | 0                    |
+| `quality_compute/gpt-4.1-nano-B64`       | quality_compute | 5            | 20 / 20      | 5.00%                           | 100%                          | 19                              | 0                      | 0                    |
+| `quality_compute/grok-3-beta-B64`        | quality_compute | 5            | 20 / 20      | 5.00%                           | 100%                          | 19                              | 0                      | 0                    |
+| `grok-3-fast-latest`                     | grok            | 5            | 20 / 20      | 0.00%                           | 0%                            | 20                              | 0                      | 0                    |
+| `gemini-1.5-flash-8b`                    | gemini          | 10           | 20 / 20      | 0.00%                           | 0%                            | 0                               | 20                     | 0                    |
+| `gemini-2.0-flash`                       | gemini          | 10           | 20 / 20      | 0.00%                           | 0%                            | 0                               | 20                     | 0                    |
+| `gpt-4.1`                                | openai          | 30           | 20 / 20      | 0.00%                           | 0%                            | 0                               | 20                     | 0                    |
+| `quality_compute/gpt-4.1-nano-B128`      | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 20                              | 0                      | 0                    |
+| `quality_compute/gpt-4.1-nano-B8`        | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 20                              | 0                      | 0                    |
+| `quality_compute/grok-3-fast-beta-B16`   | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 20                              | 0                      | 0                    |
+| `quality_compute/grok-3-fast-beta-B32`   | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 20                              | 0                      | 0                    |
+| `quality_compute/grok-3-fast-beta-B8`    | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 20                              | 0                      | 0                    |
+| `quality_compute/gpt-4.1-mini-B128`      | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 9                               | 4                      | 7                    |
+| `quality_compute/gpt-4.1-mini-B8`        | quality_compute | 5            | 20 / 20      | 0.00%                           | 0%                            | 16                              | 1                      | 3                    |
+| `gpt-4.1-mini`                           | openai          | 5            | 20 / 20      | 0.00%                           | 0%                            | 3                               | 13                     | 4                    |
+| `gemini-2.0-flash-thinking-exp-1219`     | gemini          | 10           | 20 / 20      | 35.00%                          | 100%                          | 4                               | 8                      | 1                    |
+| `gemini-2.5-flash-preview-04-17`         | gemini          | 5            | 20 / 20      | 40.00%                          | 100%                          | 5                               | 0                      | 7                    |
+| `quality_compute/grok-3-mini-beta-B128`  | quality_compute | 5            | 20 / 20      | 100.00%                         | 100%                          | 0                               | 0                      | 0                    |
+| `quality_compute/grok-3-mini-beta-B16`   | quality_compute | 5            | 20 / 20      | 100.00%                         | 100%                          | 0                               | 0                      | 0                    |
+| `quality_compute/grok-3-mini-beta-B32`   | quality_compute | 5            | 20 / 20      | 100.00%                         | 100%                          | 0                               | 0                      | 0                    |
+| `quality_compute/grok-3-mini-beta-B8`    | quality_compute | 5            | 20 / 20      | 100.00%                         | 100%                          | 0                               | 0                      | 0                    |
+| `quality_compute/grok-3-mini-fast-beta-B64` | quality_compute | 5            | 20 / 20      | 85.00%                          | 100%                          | 1                               | 0                      | 2                    |
+| `quality_compute/gpt-4.1-mini-B32`       | quality_compute | 5            | 20 / 20      | 5.00%                           | 100%                          | 12                              | 3                      | 4                    |
+| `quality_compute/gpt-4.1-mini-B64`       | quality_compute | 5            | 20 / 20      | 5.00%                           | 100%                          | 12                              | 1                      | 6                    |
+| `quality_compute/o4-mini-B8`             | quality_compute | 5            | 20 / 20      | 30.00%                          | 100%                          | 12                              | 2                      | 0                    |
 
-**Commentary:** `gemini-2.5-pro-exp` clearly demonstrates superior strategic capability against an optimal opponent.
 
----
+***Commentary:** Tic-Tac-Toe requires robust strategic planning and perfect adherence to game rules. `grok-3-mini-beta` and its `quality_compute` variants (`-B8`, `-B16`, `-B32`, `-B128`) demonstrate outstanding performance, achieving high or perfect `pass@1` scores. `o3` from OpenAI also performs very well. Other models show varying degrees of success, often achieving partial scores (Score 2) by playing valid moves but failing to win or draw consistently against an optimal opponent, or failing entirely (Score 1/Error).*
+
+*Note: The `tic_tac_toe_openai_o3_20250416_200940` report notes logs show incorrect initial grading which was fixed afterward; the scores presented here reflect the corrected grading.*
 
 ### Task: Complex File Organizer
 
-*   **Rounds:**
+*   **Rounds:** Typically 10 or 35 turns max.
 *   *Tests complex instruction following, state tracking, conditional logic, command generation.*
 
-| Model                             | `pass@1` (Perfect Match) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count |
-| :-------------------------------- | :----------------------- | :---------------------------- | :------------------------------ |
-| `gemini-2.0-flash`                | **85.0%**                | 100%                          | 2                               |
-| `gemini-2.0-flash-lite`           | 65.0%                    | 100%                          | 1                               |
-| `gemini-2.5-pro-exp-03-25`        | 15.0%                    | 100%                          | **17**                          |
-| `gemini-1.5-flash-8b`             | 0.0%                     | 0%                            | 8                               |
-| `gemini-2.0-flash-thinking-exp`\* | *N/A*                    | *N/A*                         | *N/A*                           |
-*(`*` Data not available for this model due to rate limits)*
+| Model                                  | Provider        | Turn Horizon | Attempts Run | `pass@1` (Perfect Match) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count | Failed (Score 1) Count | Failed (Error) Count |
+| :------------------------------------- | :-------------- | :----------- | :----------- | :----------------------- | :---------------------------- | :------------------------------ | :--------------------- | :------------------- |
+| `grok-3-fast-beta`                     | grok            | 35           | 20 / 20      | **100.00%**              | 100%                          | 0                               | 0                      | 0                    |
+| `gpt-4.1`                              | openai          | 30           | 20 / 20      | **100.00%**              | 100%                          | 0                               | 0                      | 0                    |
+| `gemini-2.0-flash`                     | gemini          | 10           | 20 / 20      | 85.00%                   | 100%                          | 2                               | 0                      | 1                    |
+| `o4-mini`                              | openai          | 30           | 20 / 20      | 70.00%                   | 100%                          | 6                               | 0                      | 0                    |
+| `gemini-2.0-flash-lite`                | gemini          | 10           | 20 / 20      | 65.00%                   | 100%                          | 1                               | 0                      | 6                    |
+| `gemini-2.5-flash-preview-04-17`       | gemini          | 35           | 20 / 20      | 65.00%                   | 100%                          | 7                               | 0                      | 0                    |
+| `o3`                                   | openai          | 30           | 20 / 20      | 55.00%                   | 100%                          | 8                               | 1                      | 0                    |
+| `quality_compute/grok-3-mini-beta-B8`  | quality_compute | 35           | 20 / 20      | 45.00%                   | 100%                          | 11                              | 0                      | 0                    |
+| `deepseek-chat-B1`                     | quality_compute | 35           | 20 / 20      | 20.00%                   | 100%                          | 9                               | 7                      | 0                    |
+| `gemini-2.5-pro-exp-03-25`             | gemini          | 10           | 20 / 20      | 15.00%                   | 100%                          | **17**                          | 0                      | 0                    |
+| `grok-3-mini-beta`                     | grok            | 35           | 20 / 20      | 15.00%                   | 100%                          | 12                              | 5                      | 0                    |
+| `gemini-1.5-flash-8b`                  | gemini          | 10           | 20 / 20      | 0.00%                    | 0%                            | 8                               | 0                      | 12                   |
+| `gpt-4.1-mini`                         | openai          | 30           | 20 / 20      | 85.00%                   | 100%                          | 2                               | 1                      | 0                    |
+| `gpt-4.1-nano`                         | openai          | 30           | 20 / 20      | 0.00%                    | 0%                            | 3                               | 17                     | 0                    |
+| `quality_compute/deepseek-reasoner-B1` | quality_compute | 35           | 20 / 20      | 0.00%                    | 0%                            | 2                               | 18                     | 0                    |
 
-**Commentary:** `gemini-2.0-flash` excels at precise execution of complex, sequential instructions. `gemini-2.5-pro-exp` understands the goal but struggles with perfect execution (`pass@1`), achieving partial success frequently.
-
----
+***Commentary:** File System tests precise execution of complex, stateful instructions. `grok-3-fast-beta` and `gpt-4.1` achieve perfect `pass@1` scores, indicating strong performance in this domain. Other models like `gemini-2.0-flash`, `o4-mini`, and `gemini-2.5-flash-preview-04-17` also perform very well. Models like `gemini-2.5-pro-exp` and `grok-3-mini-beta` often achieve partial success (Score 2), demonstrating an understanding of the goal but struggling with perfect step-by-step execution or handling state nuances precisely.*
 
 ### Task: Solar System Generator (Iterative Refinement)
 
-*  
+*   **Rounds:** Typically 3 turns max.
 *   *Tests HTML/JS code generation, incorporating visual feedback, debugging from logs.*
 
-| Model                             | `pass@1` (>5 Planets + Moon) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count |
-| :-------------------------------- | :--------------------------- | :---------------------------- | :------------------------------ |
-| `gemini-2.5-pro-exp-03-25`        | **15.0%**                    | 80.0%                         | 13                              |
-| `gemini-1.5-flash-8b`             | 0.0%                         | 10.0%                         | 2                               |
-| `gemini-2.0-flash`                | 0.0%                         | 35.0%                         | 7                               |
-| `gemini-2.0-flash-thinking-exp`\* | 0.0%                         | 25.0%                         | 5                               |
-| `gemini-2.0-flash-lite`           | 0.0%                         | 20.0%                         | 4                               |
-*(`*` Model tested but excluded from overall average due to incomplete data across all tasks)*
+| Model                            | Provider        | Turn Horizon | Attempts Run | `pass@1` (>5 Planets + Moon) | `pass@20` (Any Success in 20) | Partial Success (Score 2) Count | Failed (Score 1) Count | Failed (Error) Count |
+| :------------------------------- | :-------------- | :----------- | :----------- | :--------------------------- | :---------------------------- | :------------------------------ | :--------------------- | :------------------- |
+| `gemini-2.5-pro-exp-03-25`       | gemini          | 3            | 20 / 20      | **15.00%**                   | 80.0%                         | 13                              | 0                      | 0                    |
+| `grok-3-beta`                    | grok            | 3            | 20 / 20      | 0.00%                        | 0%                            | **15**                          | 5                      | 0                    |
+| `grok-3-mini-beta`               | grok            | 3            | 20 / 20      | 0.00%                        | 0%                            | 11                              | 9                      | 0                    |
+| `deepseek-chat-B1`               | quality_compute | 3            | 20 / 20      | 0.00%                        | 0%                            | 6                               | 14                     | 0                    |
+| `gemini-2.5-flash-preview-04-17` | gemini          | 3            | 20 / 20      | 0.00%                        | 0%                            | 1                               | 19                     | 0                    |
+| `gpt-4.1-nano`                   | openai          | 3            | 20 / 20      | 0.00%                        | 0%                            | 0                               | 20                     | 0                    |
 
-**Commentary:** Iterative tasks remain challenging. `gemini-2.5-pro-exp` is the only model demonstrating capability for full success, albeit unreliably. Most models achieve partial success (rendering *something* visible) but fail to meet the complex final criteria within 3 refinement rounds.
-
----
+***Commentary:** Iterative tasks with limited turns and complex feedback remain challenging. `gemini-2.5-pro-exp` is the only model tested on this task that achieved any `pass@1` success, demonstrating some capability for visual refinement, though its reliability is low. Most models achieve partial success (Score 2) by generating *some* valid code that renders, but fail to meet the full criteria within the 3-round limit. The low `pass@1` across all models highlights this task as a significant challenge.*
 
 ## Prerequisites & Usage
-
-**(This section remains the same - includes Python version, dependencies, API keys, WebDriver setup, and example commands reflecting the different round settings)**
 
 **Prerequisites:**
 
@@ -141,23 +177,22 @@ Below are detailed results for each task, comparing all models tested under the 
     ```bash
     pip install google-generativeai python-dotenv requests selenium webdriver-manager
     ```
-*   **API Keys:** Set `GOOGLE_API_KEY` in environment or `.env` file.
+*   **API Keys:** Set `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, `QUALITY_COMPUTE_API_KEY` in environment or `.env` file as needed for the providers you wish to test.
 *   **WebDriver (for `solar_gen`):** Install Chrome/Chromium and ensure `chromedriver` (matching version) is in PATH or managed by `webdriver-manager`.
 
 **Usage Examples:**
 
 ```bash
-# --- Run TicTacToe (Unlimited Rounds) ---
-python toybench_cli.py --task tic_tac_toe --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20
+# --- Run TicTacToe ---
+# Use --rounds to set the max turn horizon if desired (e.g., --rounds 5)
+python toybench_cli.py --task tic_tac_toe --provider grok --model grok-3-mini-beta --attempts 20 --rounds 5
 
 # --- Run Complex File System ---
-# Use --rounds 50 or similar for a high cap if desired
-python toybench_cli.py --task file_system --provider gemini --model gemini-2.0-flash --attempts 20 --rounds 50
+# Use --rounds 50 or similar for a high cap if desired (e.g., --rounds 35 or --rounds 50)
+python toybench_cli.py --task file_system --provider openai --model gpt-4.1 --attempts 20 --rounds 30
 
 # --- Run Solar System Generator ---
-python toybench_cli.py --task solar_gen --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20 --rounds 3
-
-# --- Run Solar System Generator (Different Horizon - e.g., 3 Rounds) ---
+# Use --rounds 3 or similar for a limited horizon
 python toybench_cli.py --task solar_gen --provider gemini --model gemini-2.5-pro-exp-03-25 --attempts 20 --rounds 3
 
 # --- Debug Run ---
