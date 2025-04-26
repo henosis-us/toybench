@@ -68,14 +68,14 @@ This table summarizes the performance of models tested across Tic-Tac-Toe, FileS
 | `gpt-4.1-nano`                   | openai          | **1.67%**                     | Generally low `pass@1` across tasks, with minimal success observed.                                                                 |
 | `gemini-1.5-flash-8b`            | gemini          | **0.00%**                     | Failed to achieve strict success (Score 3) on any task in these tests.                                                              |
 
-**Interpretation:**
+**Notes:**
 
 *   The benchmark effectively differentiates model capabilities across diverse agentic challenges and horizons, including models from different providers.
 *   No single model or provider excelled universally. Grok models (specifically grok-3-beta via its fast variant and grok-3-mini-beta) and the latest Gemini Flash variant (`gemini-2.5-flash-preview-04-17`) show the strongest average performance, though their strengths lie in different tasks.
 *   `grok-3-beta` (via `grok-3-fast-beta`) demonstrated exceptional proficiency in the highly structured `FileSystem` task, achieving a perfect `pass@1` score.
 *   `grok-3-mini-beta` showed remarkable strategic capability on `Tic-Tac-Toe` (90% `pass@1`).
 *   Iterative tasks like `SolarGen` remain challenging across the board, with very few models achieving a `pass@1` score, even with higher turn horizons. `gemini-2.5-pro-exp` was the only model among those tested across all three tasks to achieve any strict success (`pass@1`) on `SolarGen`, albeit unreliably.
-*   The `quality_compute` provider models show varying performance, with `deepseek-chat-B1` achieving partial and some full successes, while `deepseek-reasoner-B1` struggled.
+*   Reasoning/Thinking models do worse on agentic multi turn tasks.
 
 ## Task-Specific Performance Details
 
