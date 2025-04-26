@@ -3,6 +3,8 @@
 # VERSION MODIFIED TO CORRECTLY DETERMINE EVALUATOR PROVIDER INDEPENDENTLY
 # VERSION MODIFIED TO ADD XAI GROK PROVIDER SUPPORT WITH REASONING EFFORT
 # FIXED: API key name mismatch for Grok provider (mapped 'grok' to 'xai_api_key')
+# ADDED: Quality Compute provider support with hardcoded URL in llm_interface.py
+
 import argparse
 import logging
 import os
@@ -13,7 +15,7 @@ from config import load_config
 from utils import setup_logging, create_output_dir, parse_llm_score  # Use updated parse_llm_score if needed
 
 # Import Interfaces and Base Classes
-from llm_interface import LLMInterface, GeminiInterface, OpenAIInterface, GrokInterface  # Added GrokInterface
+from llm_interface import LLMInterface, GeminiInterface, OpenAIInterface, GrokInterface, QualityComputeInterface  # Added QualityComputeInterface
 from environments.base_env import BaseEnvironment
 from evaluation import Evaluator
 from reporting import calculate_metrics, format_report, save_results
@@ -130,6 +132,10 @@ def get_llm_interface(provider_name: str, api_key: str, model_name: str, reasoni
             raise ValueError("xAI API Key is required for GrokInterface.")
         # reasoning_effort is passed from CLI args, validated in GrokInterface
         return GrokInterface(api_key=api_key, model_name=model_name, reasoning_effort=reasoning_effort)
+    elif p == "quality_compute":
+        if not api_key:
+            raise ValueError("Quality Compute API Key is required for QualityComputeInterface.")
+        return QualityComputeInterface(api_key=api_key, model_name=model_name)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider_name}")
 
@@ -156,7 +162,7 @@ def parse_agent_response(response_text: str, task_name: str) -> tuple[str | None
             # Check for incomplete tags specifically
             if "<solar.html>" in response_text and "</solar.html>" not in response_text:
                 logger.error("Solar task specific error: Agent response missing closing </solar.html> tag.")
-                # Return None to indicate parsing failure, treat as invalid action upstream
+                # Return None to indicate parsing failure
                 return None, False  # Treat missing closing tag as parse failure
             elif "</solar.html>" in response_text and "<solar.html>" not in response_text:
                 logger.error("Solar task specific error: Agent response missing opening <solar.html> tag.")
@@ -339,7 +345,7 @@ def run_attempt(attempt_id: int,
     # This variable will hold the result/feedback from the environment step
     env_feedback_or_result = ""
 
-    # --- Main Interaction Loop ---
+# --- Main Interaction Loop ---
     while not premature_failure:
         # Check termination conditions: max rounds/steps reached
         if turn_count >= effective_max_rounds:
@@ -713,7 +719,7 @@ def run_attempt(attempt_id: int,
                     is_terminal_this_turn = True
                     break  # Exit main loop
 
-    # --- Attempt End ---
+# --- Attempt End ---
     end_time = time.time()
     duration = end_time - start_time
     logger.info(f"--- Attempt {attempt_id + 1} Finished (Duration: {duration:.2f}s, Rounds/Turns Ran: {turn_count}) ---")
@@ -749,17 +755,17 @@ def run_attempt(attempt_id: int,
 
                 if opponent_won:                                         # Player X lost
                     final_score = 2 if not made_invalid else 1           # partial if clean loss, fail if bad + loss
-                    final_eval_response = (
-                        "Partial (Player X lost but made no invalid moves)"
-                        if final_score == 2
-                        else f"Fail (Opponent '{getattr(env, 'opponent_player_mark', 'O')}' won and X made invalid moves)"
+                    final_eval_response = ( 
+                        "Partial (Player X lost but made no invalid moves)" 
+                        if final_score == 2 
+                        else f"Fail (Opponent '{getattr(env, 'opponent_player_mark', 'O')}' won and X made invalid moves)" 
                     )
                 elif agent_won or is_draw:                               # Player X won **or** tied
                     final_score = 3 if not made_invalid else 2           # success if clean, partial if any invalids
                     outcome_str = "won" if agent_won else "tied"
-                    final_eval_response = (
-                        f"{'Success' if final_score == 3 else 'Partial'} "
-                        f"(Player X {outcome_str}, {'no' if final_score == 3 else 'some'} invalid moves)"
+                    final_eval_response = ( 
+                        f"{'Success' if final_score == 3 else 'Partial'} " 
+                        f"(Player X {outcome_str}, {'no' if final_score == 3 else 'some'} invalid moves)" 
                     )
                 else:                                                    # should not occur in normal play
                     final_score = 1
@@ -868,6 +874,8 @@ def infer_provider_from_model(model_name: str) -> str | None:
         return "openai"
     elif name_lower.startswith('grok-'):  # Added for Grok detection
         return "grok"
+    elif name_lower.startswith(('qc-', 'quality_compute-')):  # Add detection for Quality Compute if prefixed
+        return "quality_compute"
     # Add other providers here if needed
     logger.debug(f"Could not infer provider from model name: {model_name}")
     return None  # Cannot determine
@@ -879,8 +887,8 @@ def main():
     )
     parser.add_argument("-t", "--task", required=True,
                         help="Task name (e.g., file_system, tic_tac_toe, solar_gen)")
-    parser.add_argument("-p", "--provider", default="gemini", choices=["gemini", "openai", "grok"],  # Added "grok" to choices
-                        help="LLM Provider for the AGENT (gemini, openai, grok)")
+    parser.add_argument("-p", "--provider", default="gemini", choices=["gemini", "openai", "grok", "quality_compute"],  # Added "quality_compute" to choices
+                        help="LLM Provider for the AGENT (gemini, openai, grok, quality_compute)")
     parser.add_argument("-m", "--model", default=None,
                         help="Agent LLM model name. Defaults to provider default (e.g., gemini-1.5-flash, gpt-4o-mini, grok-3-mini-beta).")
     parser.add_argument("-n", "--attempts", type=int, default=5,
@@ -963,21 +971,22 @@ def main():
     # --- API Key Checks ---
     # Define a mapping from provider to API key name in config for correct lookup
     api_key_map = {
-        'gemini': 'gemini_api_key',  # Fixed mapping for correct key lookup
+        'gemini': 'gemini_api_key',
         'openai': 'openai_api_key',
-        'grok': 'xai_api_key',       # Map 'grok' provider to 'xai_api_key' in config
+        'grok': 'xai_api_key',
+        'quality_compute': 'quality_compute_api_key',  # New entry for Quality Compute
     }
 
     # Agent API key check with mapping
     agent_api_key_name = api_key_map.get(agent_provider)
     if not agent_api_key_name:
         logger.error(f"Unsupported agent provider: '{agent_provider}'. Cannot determine API key name.")
-        print(f"Error: Unsupported provider '{agent_provider}'. Supported providers: gemini, openai, grok.")
+        print(f"Error: Unsupported provider '{agent_provider}'. Supported providers: gemini, openai, grok, quality_compute.")
         exit(1)
     agent_api_key = config.get(agent_api_key_name)
     if not agent_api_key:
         logger.error(f"Agent API Key '{agent_api_key_name}' for provider '{agent_provider}' is required but not found in config/env.")
-        print(f"Error: Agent API Key '{agent_api_key_name}' not found. Set the appropriate environment variable (e.g., GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY).")
+        print(f"Error: Agent API Key '{agent_api_key_name}' not found. Set the appropriate environment variable (e.g., GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY, QUALITY_COMPUTE_API_KEY).")
         exit(1)
     else:
         logger.info(f"Agent API Key loaded successfully for provider '{agent_provider}'.")

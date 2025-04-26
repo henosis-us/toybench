@@ -9,7 +9,7 @@ Plan your sequence of actions to achieve the goal based on what you discover. Ex
 
 When the task is complete according to the goal, respond with the exact phrase 'TASK_COMPLETE' on a line by itself, potentially after your final action confirmation if applicable.
 
-Output *only* the command you want to execute next in the following format (the parser is looking for the triple back ticks ```):
+Output *only* the command you want to execute next in the EXACT format here or the parser will not be able to understand you:
 ```action
 <your_command_here>
 ```

@@ -17,6 +17,7 @@ def load_config():
         'openai_api_key':      os.getenv('OPENAI_API_KEY'),
         # xAI Grok
         'xai_api_key':         os.getenv('XAI_API_KEY'),  # Added for xAI Grok support
+        'QUALITY_COMPUTE_URL': os.getenv('QUALITY_COMPUTE_URL'),  # New: URL for Quality Compute simulator
         # Quality Compute Simulator
         'quality_compute_api_key': os.getenv('QC_API_KEY'),  # New: API key for Quality Compute simulator
 
@@ -38,7 +39,7 @@ def load_config():
         logger.warning("OPENAI_API_KEY environment variable not set.")
     if not config['xai_api_key']:
         logger.warning("XAI_API_KEY environment variable not set.")
-    if not config['quality_compute_url']:  # New warning for Quality Compute URL
+    if not config['QUALITY_COMPUTE_URL']:  # New warning for Quality Compute URL
         logger.warning("QUALITY_COMPUTE_URL environment variable not set.")
     if not config['quality_compute_api_key']:  # New warning for Quality Compute API key
         logger.warning("QUALITY_COMPUTE_API_KEY environment variable not set.")

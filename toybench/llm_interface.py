@@ -7,6 +7,7 @@
     * `/v1/responses`         – kept for single-shot prompts and the legacy
                               flattened-string path.
 * xAI Grok models via `openai` with custom base URL.
+* Quality Compute Simulator – added for integration with the custom backend simulator.
 
 The conversational path now sends an **array of role-tagged messages**
 (`user` / `assistant`) instead of concatenating everything into one big
@@ -19,6 +20,7 @@ handling `RepeatedComposite` types.
 Improved OpenAIInterface methods (preferring chat, better multimodal).
 ADDED: xAI GrokInterface for Grok 3 Mini with reasoning support.
 UPDATED: Added support in GrokInterface for models that may not support reasoning_effort.
+ADDED: QualityComputeInterface for calling the Quality Compute simulator backend.
 """
 
 from __future__ import annotations
@@ -50,6 +52,8 @@ try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None  # Handle missing library gracefully
+
+import requests  # For Quality Compute API calls
 
 logger = logging.getLogger(__name__)
 
@@ -407,7 +411,7 @@ class OpenAIInterface(LLMInterface):
             else:
                 logger.warning("OpenAI Responses API: Response has no 'output' attribute.")
 
-            # Extract token usage
+# Extract token usage
             usage_attr = getattr(resp, 'usage', None)
             if usage_attr:
                 usage_data = self._as_dict(usage_attr)
@@ -740,3 +744,132 @@ class GrokInterface(LLMInterface):
     def evaluate_outcome(self, prompt: str) -> LLMResponse:
         messages = [{"role": "user", "content": prompt}]
         return self._call_grok_chat_api(messages)
+
+# ---------------------------------------------------------------------------
+#  Quality Compute Simulator implementation
+# ---------------------------------------------------------------------------
+class QualityComputeInterface(LLMInterface):
+    """Interface for Quality Compute simulator backend, with hardcoded URL."""
+    def __init__(self, api_key: str, model_name: str):
+        super().__init__(api_key, model_name)
+        self.base_url = "http://localhost:5002"  # Hardcoded URL as per instructions; change this to your actual simulator URL
+        if not api_key:
+            raise ValueError("Quality Compute API Key is required.")
+        logger.info(f"QualityComputeInterface initialised with model: {model_name}, base URL: {self.base_url}")
+
+    def _call_quality_compute_api(self, input_data: str or List[Dict], is_conversational: bool = False) -> LLMResponse:
+        """Internal helper to call the Quality Compute /generate endpoint with retries."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model_name,  # Pass the model name directly, e.g., "o4-mini-B8"
+            "input": input_data,  # Can be string or list of messages
+        }
+        # Optionally add other passthrough params if needed, but keep it simple for now
+
+        retries = 3
+        delay = 10  # seconds
+        for attempt in range(retries):
+            try:
+                response = requests.post(f"{self.base_url}/quality_compute/generate", headers=headers, json=payload)
+                if response.status_code == 200:
+                    resp_json = response.json()
+                    text_response = resp_json.get("selected_text")
+                    usage_dict = resp_json.get("usage", {})
+                    raw_api_response = resp_json  # Store the entire response for debugging
+                    # Parse usage to match expected format
+                    token_usage = {
+                        "input_tokens": usage_dict.get("input_tokens", 0),
+                        "output_tokens": usage_dict.get("output_tokens", 0),
+                        "reasoning_tokens": usage_dict.get("reasoning_tokens", 0),
+                        "total_tokens": usage_dict.get("total_tokens", 0),
+                    }
+                    return text_response, token_usage, raw_api_response
+                else:
+                    error_detail = response.json().get("error", "Unknown error from Quality Compute API")
+                    logger.warning(f"Quality Compute API error (status {response.status_code}): {error_detail}")
+                    if attempt < retries - 1:
+                        time.sleep(delay)
+                    else:
+                        return None, None, {"status_code": response.status_code, "error_detail": error_detail}
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Network error calling Quality Compute API (attempt {attempt+1}/{retries}): {e}")
+                if attempt < retries - 1:
+                    time.sleep(delay)
+                else:
+                    return None, None, {"status_code": 500, "error_detail": str(e)}
+        return None, None, None  # Fallback in case of unhandled errors
+
+    def generate_action(self, prompt: str) -> LLMResponse:
+        return self._call_quality_compute_api(prompt)
+
+    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+        # --- START COPIED/ADAPTED CONVERSION LOGIC ---
+        openai_messages: List[Dict[str, Any]] = []
+        allowed_openai_roles = {"system", "user", "assistant"} # Simulator likely expects these roles
+        last_openai_role = None
+        for entry in history:
+            gemini_role = entry.get("role", "user")
+            parts = entry.get("parts", [])
+            # Map Gemini roles to simulator/OpenAI roles
+            openai_role = "assistant" if gemini_role == "model" else "user"
+            if openai_role not in allowed_openai_roles:
+                logger.warning(f"Mapping unexpected Gemini role '{gemini_role}' to 'user' for QualityCompute.")
+                openai_role = "user"
+
+            content_value: Any = None
+            if isinstance(parts, list):
+                text_content_parts: List[str] = []
+                for p in parts:
+                    if isinstance(p, str):
+                        text_content_parts.append(p)
+                    elif isinstance(p, dict) and "text" in p and isinstance(p["text"], str):
+                        text_content_parts.append(p["text"])
+                    # NOTE: Quality Compute simulator likely doesn't handle images, so ignore image parts
+                    elif isinstance(p, dict) and "source" in p:
+                         logger.debug("Ignoring non-text part in history conversion for QualityCompute.")
+                    else:
+                        logger.warning(f"Skipping unsupported part type in history for QualityCompute: {type(p)} / {p!r}")
+                content_value = "\n".join(text_content_parts).strip()
+            elif isinstance(parts, str):
+                content_value = parts.strip()
+            else:
+                logger.warning(f"History entry 'parts' has unexpected type {type(parts)}. Skipping entry for QualityCompute.")
+                continue
+
+            if not content_value:
+                logger.debug(f"Skipping history entry from role '{gemini_role}' with empty content after processing parts for QualityCompute.")
+                continue
+
+            # Handle consecutive messages (optional but good practice, simulator might handle it too)
+            if openai_messages and last_openai_role == openai_role:
+                logger.warning(f"Consecutive messages with role '{openai_role}' detected for QualityCompute. Appending content.")
+                last_message = openai_messages[-1]
+                if isinstance(last_message.get('content'), str):
+                    last_message['content'] += "\n" + content_value
+                else: # Should not happen if content is always string, but safe fallback
+                     openai_messages.append({"role": openai_role, "content": content_value})
+                     last_openai_role = openai_role
+            else:
+                openai_messages.append({"role": openai_role, "content": content_value})
+                last_openai_role = openai_role
+
+        if not openai_messages:
+            logger.error("Cannot call Quality Compute API: No valid messages derived from history after conversion.")
+            return None, None, None
+        logger.debug(f"Converted history to Quality Compute messages format (length: {len(openai_messages)}).")
+        # --- END CONVERSION LOGIC ---
+
+        # Call the internal API helper with the *converted* messages list
+        return self._call_quality_compute_api(openai_messages) # Pass the converted list
+
+    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+        logger.warning("Multimodal generation is not supported by Quality Compute interface. Falling back to text-only.")
+        # Attempt to extract text from contents and call as text prompt
+        text_content = " ".join([part.get("text", "") for item in contents for part in item.get("parts", []) if isinstance(part, dict) and "text" in part])
+        return self._call_quality_compute_api(text_content)
+
+    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+        return self._call_quality_compute_api(prompt)

@@ -82,7 +82,7 @@ class Evaluator:
             image_path (str): Path to the final image file (e.g., screenshot).
         Returns:
             tuple[int, str]: (score (1, 2, or 3), raw_response_text).
-                             Returns score 1 on failure (file missing, encode error, LLM error, parse error).
+                            Returns score 1 on failure (file missing, encode error, LLM error, parse error).
         """
         logger.info(f"Requesting final image evaluation for: {image_path}")
 
@@ -100,24 +100,24 @@ class Evaluator:
         image_data = encode_file_inline_data_gemini(image_path)
         if image_data is None:
             logger.error(f"Failed to encode image file: {image_path}")
-            return 1, f"Failed to encode image file: {image_path}" # Encoding error is a failure
+            return 1, f"Failed to encode image file: {image_path}"  # Encoding error is a failure
 
         # 3. Construct the multimodal payload
         # Ensure the final evaluation prompt template is set
         if not self.eval_prompt_template:
-             logger.error("Final image evaluation prompt template is not set for Evaluator.")
-             return 1, "Evaluator prompt template missing for image evaluation."
+            logger.error("Final image evaluation prompt template is not set for Evaluator.")
+            return 1, "Evaluator prompt template missing for image evaluation."
 
         # Gemini API's generateContent payload structure:
         multimodal_payload = [
-             {
-                 "role": "user",
-                 "parts": [
-                     # image_data['source'] contains the {'inline_data': {...}} structure
-                     image_data["source"],
-                     {"text": self.eval_prompt_template} # The text instructions
-                 ]
-             }
+            {
+                "role": "user",
+                "parts": [
+                    # image_data['source'] contains the {'inline_data': {...}} structure
+                    image_data["source"],
+                    {"text": self.eval_prompt_template}  # The text instructions
+                ]
+            }
         ]
 
         # --- CORRECTED DEBUG LINE ---
@@ -130,24 +130,28 @@ class Evaluator:
             logger.warning(f"Could not log multimodal payload structure details: {log_e}")
         # --- END CORRECTION ---
 
-
         # 4. Call the LLM using a multimodal method
         # Ensure the LLM interface instance supports multimodal calls
         if not hasattr(self.llm, 'generate_content_multimodal'):
-             logger.error("LLM interface provided to Evaluator does not support 'generate_content_multimodal'.")
-             return 1, "Evaluator LLM interface does not support multimodal generation."
+            logger.error("LLM interface provided to Evaluator does not support 'generate_content_multimodal'.")
+            return 1, "Evaluator LLM interface does not support multimodal generation."
 
         response_text = None
         try:
-             logger.info("Sending request to multimodal evaluator LLM.")
-             response_text = self.llm.generate_content_multimodal(multimodal_payload)
+            logger.info("Sending request to multimodal evaluator LLM.")
+            response_text, _, _ = self.llm.generate_content_multimodal(multimodal_payload)  # Unpack the tuple returned by generate_content_multimodal
         except Exception as e:
-             logger.error(f"Error during multimodal LLM call: {e}", exc_info=True)
-             return 1, f"Multimodal LLM call failed: {e}" # LLM call failure -> Score 1
+            logger.error(f"Error during multimodal LLM call: {e}", exc_info=True)
+            return 1, f"Multimodal LLM call failed: {e}"  # LLM call failure -> Score 1
 
         if response_text is None:
             logger.error("Failed to get response from multimodal evaluator LLM.")
-            return 1, "Multimodal Evaluator LLM failed to respond." # Fail score if no response
+            return 1, "Multimodal Evaluator LLM failed to respond."  # Fail score if no response
+
+        # Add type check for response_text before parsing
+        if not isinstance(response_text, str):
+            logger.error(f"Response text is not a string (type: {type(response_text)}), cannot parse score. Raw response: {response_text}")
+            return 1, f"Invalid response type from LLM: {type(response_text)}"
 
         logger.info(f"Received final multimodal evaluation response: {response_text[:100]}...")
 

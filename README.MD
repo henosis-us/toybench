@@ -58,9 +58,9 @@ This table summarizes the performance of models tested across Tic-Tac-Toe, FileS
 
 | Model                            | Provider        | Overall Score (Avg. `pass@1`) | Notes                                                                                                                               |
 | :------------------------------- | :-------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `grok-3-beta`                    | grok            | **33.33%**                    | Top performer overall when grouping 'fast' variants. Achieved perfect `pass@1` on FileSystem (grok-3-fast-beta).                                    |
-| `gemini-2.5-flash-preview-04-17` | gemini          | **35.00%**                    | Strongest Gemini Flash variant overall. Varied performance across tasks.                                                              |
-| `grok-3-mini-beta`               | grok            | **35.00%**                    | Tied for highest overall score. Excellent on Tic-Tac-Toe, but struggled on FileSystem and SolarGen.                               |
+| `grok-3-mini-beta`               | grok            | **35.00%**                    | Tied for highest overall score. Excellent on Tic-Tac-Toe, but struggled on FileSystem and SolarGen.                                 |
+| `gemini-2.5-flash-preview-04-17` | gemini          | **35.00%**                    | Strongest Gemini Flash variant overall. Varied performance across tasks.                                                            |
+| `grok-3-beta`                    | grok            | **33.33%**                    | Achieved perfect `pass@1` on FileSystem (grok-3-fast-beta).                    |
 | `gemini-2.5-pro-exp-03-25`       | gemini          | **31.67%**                    | Strongest Gemini Pro variant overall. Good strategic planning (TTT), capable iterative refinement (SolarGen), but lower `pass@1` on FS. |
 | `gemini-2.0-flash`               | gemini          | **28.33%**                    | Excels on FileSystem, but struggled significantly on Tic-Tac-Toe and SolarGen.                                                      |
 | `gemini-2.0-flash-lite`          | gemini          | **25.00%**                    | Balanced moderate performance on TTT/FS, but failed SolarGen `pass@1`.                                                              |
