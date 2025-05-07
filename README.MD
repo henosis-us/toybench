@@ -1,4 +1,3 @@
-# Updated README.md with new data from reports
 # ToyBench: Evaluating Agentic Planning, Action, and Iterative Refinement
 
 **ToyBench** evaluates the capability of Large Language Models (LLMs) to **plan, take actions agentically over time, and refine outputs based on feedback**. Our vision is to create a method for measuring how well LLMs translate complex requirements and high-level goals into tangible, **"valid" sequences of actions or artifacts** within defined environments, assessed through a practical, multi-step process that may involve interaction and iteration. This benchmark will be continually updated over time.
