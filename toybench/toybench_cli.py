@@ -4,6 +4,7 @@
 # VERSION MODIFIED TO ADD XAI GROK PROVIDER SUPPORT WITH REASONING EFFORT
 # FIXED: API key name mismatch for Grok provider (mapped 'grok' to 'xai_api_key')
 # ADDED: Quality Compute provider support with hardcoded URL in llm_interface.py
+# ADDED: Anthropic Claude support
 
 import argparse
 import logging
@@ -15,7 +16,7 @@ from config import load_config
 from utils import setup_logging, create_output_dir, parse_llm_score  # Use updated parse_llm_score if needed
 
 # Import Interfaces and Base Classes
-from llm_interface import LLMInterface, GeminiInterface, OpenAIInterface, GrokInterface, QualityComputeInterface  # Added QualityComputeInterface
+from llm_interface import LLMInterface, GeminiInterface, OpenAIInterface, GrokInterface, QualityComputeInterface, AnthropicInterface  # Added AnthropicInterface
 from environments.base_env import BaseEnvironment
 from evaluation import Evaluator
 from reporting import calculate_metrics, format_report, save_results

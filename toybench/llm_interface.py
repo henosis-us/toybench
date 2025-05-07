@@ -8,6 +8,7 @@
                               flattened-string path.
 * xAI Grok models via `openai` with custom base URL.
 * Quality Compute Simulator – added for integration with the custom backend simulator.
+* Anthropic Claude models via `anthropic`
 
 The conversational path now sends an **array of role-tagged messages**
 (`user` / `assistant`) instead of concatenating everything into one big
@@ -21,6 +22,7 @@ Improved OpenAIInterface methods (preferring chat, better multimodal).
 ADDED: xAI GrokInterface for Grok 3 Mini with reasoning support.
 UPDATED: Added support in GrokInterface for models that may not support reasoning_effort.
 ADDED: QualityComputeInterface for calling the Quality Compute simulator backend.
+ADDED: AnthropicInterface for calling Anthropic Claude models.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletion
     from openai.types.chat.chat_completion import Choice as OpenAIChoice
     from openai.types.completion_usage import CompletionUsage
+    from anthropic.types import Message
 
 # Keep runtime imports minimal or handle ImportErrors if necessary
 try:
@@ -52,6 +55,11 @@ try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None  # Handle missing library gracefully
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None  # Handle missing library gracefully
 
 import requests  # For Quality Compute API calls
 
@@ -148,7 +156,7 @@ class GeminiInterface(LLMInterface):
         for attempt in range(retries):
             try:
                 logger.debug(f"Calling Gemini API (Attempt {attempt+1}/{retries})")
-                resp = self.model.generate_content(prompt_or_contents)
+                resp = self.model.generate_content(contents=prompt_or_contents, request_options={"timeout": 1000})
                 raw_api_response_for_return = resp
 
                 # --- Enhanced Text Extraction Logic ---
@@ -411,7 +419,7 @@ class OpenAIInterface(LLMInterface):
             else:
                 logger.warning("OpenAI Responses API: Response has no 'output' attribute.")
 
-# Extract token usage
+            # Extract token usage
             usage_attr = getattr(resp, 'usage', None)
             if usage_attr:
                 usage_data = self._as_dict(usage_attr)
@@ -873,3 +881,166 @@ class QualityComputeInterface(LLMInterface):
 
     def evaluate_outcome(self, prompt: str) -> LLMResponse:
         return self._call_quality_compute_api(prompt)
+
+# ---------------------------------------------------------------------------
+#  Anthropic Claude implementation
+# ---------------------------------------------------------------------------
+class AnthropicInterface(LLMInterface):
+    """Interface for Anthropic Claude models."""
+    def __init__(self, api_key: str, model_name: str):
+        super().__init__(api_key, model_name)
+        if not api_key:
+            raise ValueError("Anthropic API Key is required.")
+        if anthropic is None:
+            raise ImportError("anthropic library is not installed. Please install it to use AnthropicInterface.")
+        try:
+            self.client = anthropic.Anthropic(api_key=api_key)
+            self.model = model_name
+            logger.info(f"AnthropicInterface initialised with model: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Anthropic client for model {model_name}: {e}", exc_info=True)
+            raise ValueError(f"Anthropic initialization failed: {e}") from e
+
+    # --- Internal helper for chat API calls with retries ---
+    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: str = None) -> LLMResponse:
+        text_response: Optional[str] = None
+        token_usage: TokenUsage = None
+        resp: Optional["Message"] = None
+        
+        retries = 3
+        delay = 10  # seconds
+        
+        for attempt in range(retries):
+            try:
+                logger.debug(f"Calling Anthropic API (Attempt {attempt+1}/{retries})")
+                
+                kwargs = {
+                    "model": self.model,
+                    "max_tokens": 4000,
+                    "messages": messages,
+                }
+                
+                if system_prompt:
+                    kwargs["system"] = system_prompt
+                
+                resp = self.client.messages.create(**kwargs)
+                
+                # Extract text response
+                if resp.content:
+                    text_blocks = [block.text for block in resp.content if hasattr(block, 'text')]
+                    text_response = "\n".join(text_blocks)
+                    logger.debug(f"Anthropic extracted text response. Stop reason: {resp.stop_reason}")
+                else:
+                    logger.warning("Anthropic response has no content blocks")
+                
+                # Extract token usage
+                if hasattr(resp, 'usage'):
+                    input_tokens = getattr(resp.usage, 'input_tokens', None)
+                    output_tokens = getattr(resp.usage, 'output_tokens', None)
+                    total_tokens = None
+                    if input_tokens is not None and output_tokens is not None:
+                        total_tokens = input_tokens + output_tokens
+                    
+                    token_usage = {
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "total_tokens": total_tokens
+                    }
+                    logger.debug(f"Anthropic API Token Usage: {token_usage}")
+                else:
+                    logger.debug("No usage data found in Anthropic response")
+                
+                return text_response, token_usage, resp
+                
+            except Exception as e:
+                logger.warning(f"Anthropic API error during call/processing ({attempt+1}/{retries}): {e}", exc_info=True)
+                if attempt < retries - 1:
+                    time.sleep(delay * (attempt + 1))
+                else:
+                    logger.error(f"Anthropic API failed after {retries} attempts")
+                    return None, None, None
+            
+        return None, None, None
+
+    # --- Convert Gemini format to Anthropic format ---
+    def _convert_to_anthropic_messages(self, history: List[Dict]) -> List[Dict[str, Any]]:
+        anthropic_messages = []
+        
+        for entry in history:
+            gemini_role = entry.get("role", "user")
+            parts = entry.get("parts", [])
+            
+            # Map Gemini roles to Anthropic roles
+            anthropic_role = "assistant" if gemini_role == "model" else "user"
+            
+            content_value = None
+            if isinstance(parts, list):
+                text_content_parts = []
+                for p in parts:
+                    if isinstance(p, str):
+                        text_content_parts.append(p)
+                    elif isinstance(p, dict) and "text" in p and isinstance(p["text"], str):
+                        text_content_parts.append(p["text"])
+                    else:
+                        logger.warning(f"Skipping unsupported part type in history for Anthropic: {type(p)}")
+                content_value = "\n".join(text_content_parts).strip()
+            elif isinstance(parts, str):
+                content_value = parts.strip()
+            
+            if content_value:
+                anthropic_messages.append({"role": anthropic_role, "content": content_value})
+        
+        if not anthropic_messages:
+            logger.error("No valid messages derived from history for Anthropic")
+            return []
+        
+        return anthropic_messages
+
+    # --- Implement abstract methods ---
+    def generate_action(self, prompt: str) -> LLMResponse:
+        messages = [{"role": "user", "content": prompt}]
+        return self._call_anthropic_api(messages)
+
+    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+        anthropic_messages = self._convert_to_anthropic_messages(history)
+        if not anthropic_messages:
+            return None, None, None
+        
+        logger.debug(f"Converted history to Anthropic messages format (length: {len(anthropic_messages)})")
+        return self._call_anthropic_api(anthropic_messages)
+
+    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+        logger.warning("Multimodal support for Anthropic is not fully implemented yet. Converting to text-only.")
+        
+        messages = []
+        if not contents or not isinstance(contents, list):
+            logger.error("Invalid format for multimodal contents input")
+            return None, None, None
+        
+        # Extract text from first content entry
+        first_entry = contents[0]
+        entry_role = first_entry.get("role", "user")
+        parts = first_entry.get("parts", [])
+        
+        anthropic_role = "assistant" if entry_role == "model" else "user"
+        
+        text_content = ""
+        for part in parts:
+            if isinstance(part, str):
+                text_content += part + "\n"
+            elif isinstance(part, dict) and "text" in part:
+                text_content += part["text"] + "\n"
+            elif isinstance(part, dict) and "source" in part:
+                # Image parts are not supported in this basic implementation
+                logger.warning("Skipping image part in multimodal content for Anthropic")
+        
+        if text_content:
+            messages.append({"role": anthropic_role, "content": text_content.strip()})
+            return self._call_anthropic_api(messages)
+        else:
+            logger.error("No valid text content found in multimodal input")
+            return None, None, None
+
+    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+        messages = [{"role": "user", "content": prompt}]
+        return self._call_anthropic_api(messages)
