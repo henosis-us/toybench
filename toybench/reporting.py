@@ -9,10 +9,11 @@ logger = logging.getLogger(__name__)
 # Define type alias for token usage dictionary for clarity within this module
 TokenUsage = dict[str, int | None] | None
 
-def calculate_metrics(attempt_results: list[dict], num_attempts: int, k_values: list[int] = [1, 5, 10, 20]) -> dict:
+def calculate_metrics(attempt_results: list[dict], num_attempts: int, task_name: str, k_values: list[int] = [1, 5, 10, 20]) -> dict:
     """Calculates metrics based on a list of attempt results.
     Focuses on accurate distinction between Score 1 failures and Error failures using the 'premature_failure' flag.
     Also calculates aggregate token usage, including reasoning tokens for supported models.
+    Added task_name to support task-specific metrics, such as the Differentiated Score for solar_gen.
     """
     if not attempt_results:
         logger.warning("No attempt results to calculate metrics from.")
@@ -36,7 +37,7 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, k_values: 
     for i, r in enumerate(attempt_results):
         score = r.get('score')
         is_premature = r.get('premature_failure', False)  # Default to False if missing
-        attempt_id = r.get('attempt_id', i+1)
+        attempt_id = r.get('attempt_id', i + 1)
         has_regression = r.get('regressions_detected', False)
         log_msg = f"Attempt {attempt_id}: Score={score}, Premature={is_premature}"
 
@@ -113,6 +114,10 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, k_values: 
         'pass@20': 0.0,  # Default value
         'at_least_one_success': 1.0 if num_successful > 0 else 0.0,
 
+        # --- Task-Specific Metrics ---
+        # Add Differentiated Score for solar_gen
+        'solar_differentiated_score': None,  # Initialize to None
+
         # --- Token Metrics ---
         'total_input_tokens': total_input_tokens,
         'total_output_tokens': total_output_tokens,
@@ -126,14 +131,20 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, k_values: 
         'avg_total_tokens_per_attempt': total_tokens_overall / attempts_with_token_data if attempts_with_token_data > 0 else 0,
     }
 
+    # Calculate Differentiated Score for solar_gen task
+    if task_name == "solar_gen" and num_attempts_run > 0:
+        differentiated_score = ((metrics['num_successful'] * 1.0) + (metrics['num_partial'] * 0.3)) / num_attempts_run * 100
+        metrics['solar_differentiated_score'] = differentiated_score
+        logger.info(f"Differentiated Score for SolarGen calculated: {differentiated_score:.2f}%")
+
     # Calculate Pass@K (handle edge case where k > num_attempts_run)
     metrics['pass@1'] = metrics['pass_rate_strict']  # Pass@1 is just the strict pass rate
     k_pass_check = min(num_attempts_run, 20)
     metrics['pass@20'] = 1.0 if any(r.get('score') == 3 and not r.get('premature_failure', False) for r in attempt_results[:k_pass_check]) else 0.0
 
     # Log the final calculated metrics before returning
-    logger.info(f"Metrics calculated: Success={metrics['num_successful']}, Partial={metrics['num_partial']}, Failed (Score 1)={metrics['num_failed_score']}, Failed (Error)={metrics['num_failed_error']}, Regressions={metrics['regression_count']}")
-    logger.info(f"Token Metrics: TotalInput={metrics['total_input_tokens']}, TotalOutput={metrics['total_output_tokens']}, TotalReasoning={metrics['total_reasoning_tokens']}, TotalOverall={metrics['total_tokens_all_attempts']} (from {metrics['attempts_with_token_data']} attempts)")  # Updated log to include reasoning tokens
+    logger.info(f"Metrics calculated: Success={metrics['num_successful']}, Partial={metrics['num_partial']}, Failed (Score 1)={metrics['num_failed_score']}, Failed (Error)={metrics['num_failed_error']}, Solar Differentiated Score={metrics.get('solar_differentiated_score', 'N/A')}")
+    logger.info(f"Token Metrics: TotalInput={metrics['total_input_tokens']}, TotalOutput={metrics['total_output_tokens']}, TotalReasoning={metrics['total_reasoning_tokens']}, TotalOverall={metrics['total_tokens_all_attempts']} (from {metrics['attempts_with_token_data']} attempts)")
     logger.debug(f"Final metrics dictionary: {metrics}")
     return metrics
 
@@ -185,17 +196,22 @@ def format_report(metrics_dict: dict, task_name: str, provider: str, model: str,
         f"Regression Freq.  : {regression_freq:.2%} ({regression_count} attempts)",
     ]
 
+    # Add task-specific metrics, e.g., Differentiated Score for solar_gen
+    if task_name == "solar_gen":
+        differentiated_score = metrics_dict.get('solar_differentiated_score', 0)
+        report.append(f"Differentiated Solar Score (S3=1pt, S2=0.3pt): {differentiated_score:.2f}%")  # Corrected to .2f for proper formatting
+
     # Add token section only if data was found
     if token_attempts > 0:
         report.extend([
             f"--- Token Usage (Based on {token_attempts} attempts) ---",
             f"Total Input     : {total_input:,}",
             f"Total Output    : {total_output:,}",
-            f"Total Reasoning : {total_reasoning:,}",  # Added line for reasoning tokens
+            f"Total Reasoning : {total_reasoning:,}",
             f"Total Overall   : {total_overall:,}",
             f"Avg Input/Attempt : {avg_input:,.1f}",
             f"Avg Output/Attempt: {avg_output:,.1f}",
-            f"Avg Reasoning/Attempt : {avg_reasoning:,.1f}",  # Added line for average reasoning tokens
+            f"Avg Reasoning/Attempt : {avg_reasoning:,.1f}",
             f"Avg Total/Attempt : {avg_total:,.1f}",
         ])
     else:
@@ -215,7 +231,7 @@ def save_results(output_dir: str, results: list[dict], report: str, config_args:
     # Save summary report
     summary_path = os.path.join(output_dir, "summary_report.txt")
     try:
-        with open(summary_path, "w", encoding='utf-8') as f:  # Ensure utf-8 encoding
+        with open(summary_path, "w", encoding='utf-8') as f:
             f.write(report)
     except Exception as e:
         logger.error(f"Failed to write summary report to {summary_path}: {e}")
@@ -258,4 +274,4 @@ def save_results(output_dir: str, results: list[dict], report: str, config_args:
     except Exception as e:
         logger.error(f"Failed to open or write detailed results file {results_path}: {e}")
 
-    logger.info(f"Results saved to: {output_dir} (Summary: {summary_path}, Config: {config_path}, Details: {results_path})")
+    logger.info(f"Results saved to: {output_dir} (Summary: {summary_path}, Config: {config_path}, Details: {results_path}")

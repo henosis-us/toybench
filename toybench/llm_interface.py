@@ -23,6 +23,8 @@ ADDED: xAI GrokInterface for Grok 3 Mini with reasoning support.
 UPDATED: Added support in GrokInterface for models that may not support reasoning_effort.
 ADDED: QualityComputeInterface for calling the Quality Compute simulator backend.
 ADDED: AnthropicInterface for calling Anthropic Claude models.
+UPDATED: Added support for Anthropic extended thinking with streaming.
+FIXED: Removed erroneous 'stream': True from Anthropic stream call to resolve TypeError.
 """
 
 from __future__ import annotations
@@ -883,26 +885,28 @@ class QualityComputeInterface(LLMInterface):
         return self._call_quality_compute_api(prompt)
 
 # ---------------------------------------------------------------------------
-#  Anthropic Claude implementation
+#  Anthropic implementation
 # ---------------------------------------------------------------------------
 class AnthropicInterface(LLMInterface):
     """Interface for Anthropic Claude models."""
-    def __init__(self, api_key: str, model_name: str):
+    def __init__(self, api_key: str, model_name: str, thinking_enabled: bool = False, thinking_budget: int = 16000):
         super().__init__(api_key, model_name)
         if not api_key:
             raise ValueError("Anthropic API Key is required.")
         if anthropic is None:
             raise ImportError("anthropic library is not installed. Please install it to use AnthropicInterface.")
+        self.thinking_enabled = thinking_enabled
+        self.thinking_budget = thinking_budget
         try:
             self.client = anthropic.Anthropic(api_key=api_key)
             self.model = model_name
-            logger.info(f"AnthropicInterface initialised with model: {model_name}")
+            logger.info(f"AnthropicInterface initialised with model: {model_name}, thinking_enabled: {thinking_enabled}")
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic client for model {model_name}: {e}", exc_info=True)
             raise ValueError(f"Anthropic initialization failed: {e}") from e
 
     # --- Internal helper for chat API calls with retries ---
-    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: str = None) -> LLMResponse:
+    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: Optional[str] = None) -> LLMResponse:
         text_response: Optional[str] = None
         token_usage: TokenUsage = None
         resp: Optional["Message"] = None
@@ -912,31 +916,43 @@ class AnthropicInterface(LLMInterface):
         
         for attempt in range(retries):
             try:
-                logger.debug(f"Calling Anthropic API (Attempt {attempt+1}/{retries})")
+                logger.debug(f"Calling Anthropic API with streaming (Attempt {attempt+1}/{retries})")
                 
                 kwargs = {
                     "model": self.model,
-                    "max_tokens": 4000,
+                    "max_tokens": 32000,
                     "messages": messages,
                 }
                 
                 if system_prompt:
                     kwargs["system"] = system_prompt
                 
-                resp = self.client.messages.create(**kwargs)
-                
-                # Extract text response
-                if resp.content:
-                    text_blocks = [block.text for block in resp.content if hasattr(block, 'text')]
-                    text_response = "\n".join(text_blocks)
-                    logger.debug(f"Anthropic extracted text response. Stop reason: {resp.stop_reason}")
+                if self.thinking_enabled:
+                    kwargs["thinking"] = {"type": "enabled", "budget_tokens": self.thinking_budget}
+                    logger.debug(f"Extended thinking enabled with budget: {self.thinking_budget}")
                 else:
-                    logger.warning("Anthropic response has no content blocks")
+                    kwargs["thinking"] = {"type": "disabled"}  # Explicitly disable if not enabled
                 
-                # Extract token usage
-                if hasattr(resp, 'usage'):
-                    input_tokens = getattr(resp.usage, 'input_tokens', None)
-                    output_tokens = getattr(resp.usage, 'output_tokens', None)
+                accumulated_text_parts: List[str] = []
+                with self.client.messages.stream(**kwargs) as stream:
+                    for event in stream:
+                        if event.type == "content_block_delta":
+                            if event.delta.type == "text_delta":
+                                accumulated_text_parts.append(event.delta.text)
+                            elif event.delta.type == "thinking_delta":
+                                # Skip thinking_delta as per instruction to exclude thoughts
+                                logger.debug("Skipping thinking_delta content as per configuration.")
+                        # Other event types (e.g., content_block_start, content_block_stop) are handled by the stream but not used for text accumulation
+                # After stream completes, get the final message for usage and other details
+                final_model_response_obj = stream.get_final_message()
+                
+                text_response = "".join(accumulated_text_parts).strip()
+                
+                # Extract token usage from the final message object
+                if final_model_response_obj and hasattr(final_model_response_obj, 'usage'):
+                    usage_data = final_model_response_obj.usage
+                    input_tokens = getattr(usage_data, 'input_tokens', None)
+                    output_tokens = getattr(usage_data, 'output_tokens', None)
                     total_tokens = None
                     if input_tokens is not None and output_tokens is not None:
                         total_tokens = input_tokens + output_tokens
@@ -946,21 +962,36 @@ class AnthropicInterface(LLMInterface):
                         "output_tokens": output_tokens,
                         "total_tokens": total_tokens
                     }
-                    logger.debug(f"Anthropic API Token Usage: {token_usage}")
+                    logger.debug(f"Anthropic API Token Usage (from stream): {token_usage}")
                 else:
-                    logger.debug("No usage data found in Anthropic response")
+                    logger.debug("No usage data found in Anthropic final_model_response_obj from stream.")
                 
-                return text_response, token_usage, resp
+                # Log stop reason or other details if available
+                if final_model_response_obj:
+                    stop_reason = getattr(final_model_response_obj, 'stop_reason', 'N/A')
+                    logger.debug(f"Anthropic stream completed. Stop reason: {stop_reason}")
                 
-            except Exception as e:
-                logger.warning(f"Anthropic API error during call/processing ({attempt+1}/{retries}): {e}", exc_info=True)
-                if attempt < retries - 1:
-                    time.sleep(delay * (attempt + 1))
-                else:
-                    logger.error(f"Anthropic API failed after {retries} attempts")
-                    return None, None, None
+                return text_response, token_usage, final_model_response_obj
+                
+            except anthropic.APIConnectionError as e:
+                logger.warning(f"Anthropic API connection error (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
+            except anthropic.RateLimitError as e:
+                logger.warning(f"Anthropic API rate limit error (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
+            except anthropic.APIStatusError as e: 
+                logger.warning(f"Anthropic API status error {e.status_code} (Attempt {attempt+1}/{retries}): {e.message}", exc_info=True)
+            except Exception as e: 
+                logger.warning(f"Anthropic API general error during streaming/processing (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
             
-        return None, None, None
+            # If an exception occurred and it's not the last attempt, sleep and retry
+            if attempt < retries - 1:
+                actual_delay = delay * (attempt + 1)
+                logger.info(f"Retrying Anthropic API call in {actual_delay} seconds...")
+                time.sleep(actual_delay)
+            else:
+                logger.error(f"Anthropic API failed after {retries} attempts")
+                return None, None, None
+            
+        return None, None, None  # Fallback if all retries fail
 
     # --- Convert Gemini format to Anthropic format ---
     def _convert_to_anthropic_messages(self, history: List[Dict]) -> List[Dict[str, Any]]:
@@ -998,8 +1029,8 @@ class AnthropicInterface(LLMInterface):
 
     # --- Implement abstract methods ---
     def generate_action(self, prompt: str) -> LLMResponse:
-        messages = [{"role": "user", "content": prompt}]
-        return self._call_anthropic_api(messages)
+        anthropic_messages = [{"role": "user", "content": prompt}]
+        return self._call_anthropic_api(anthropic_messages)
 
     def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
         anthropic_messages = self._convert_to_anthropic_messages(history)
