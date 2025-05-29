@@ -7,6 +7,7 @@
 # ADDED: Anthropic Claude support
 # UPDATED: Passing 'task_name' to calculate_metrics for task-specific metrics like Differentiated Score in SolarGen.
 # ADDED: --thinking and --thinking_budget arguments for Anthropic extended thinking support
+# UPDATED: Added --max_tokens argument and support for passing max_tokens to LLM interfaces and calls
 
 import argparse
 import logging
@@ -119,28 +120,18 @@ def get_environment(task_name: str,
         raise ValueError(f"Unknown task name: {task_name}")
 
 # --- LLM Provider Factory ---
-def get_llm_interface(provider_name: str, api_key: str, model_name: str, thinking_enabled: bool = False, thinking_budget: int = 16000) -> LLMInterface:
+def get_llm_interface(provider_name: str, api_key: str, model_name: str, thinking_enabled: bool = False, thinking_budget: int = 16000, max_tokens: int = None, **kwargs) -> LLMInterface:
     """Factory function to instantiate the correct LLM interface."""
     p = provider_name.lower()
     if p == "gemini":
-        if not api_key:
-            raise ValueError("Gemini API Key is required for GeminiInterface.")
         return GeminiInterface(api_key=api_key, model_name=model_name)
     elif p == "openai":
-        if not api_key:
-            raise ValueError("OpenAI API Key is required for OpenAIInterface.")
         return OpenAIInterface(api_key=api_key, model_name=model_name)
     elif p == "grok":
-        if not api_key:
-            raise ValueError("xAI API Key is required for GrokInterface.")
         return GrokInterface(api_key=api_key, model_name=model_name, reasoning_effort="low")  # Reasoning effort defaulted, can be overridden if needed
     elif p == "quality_compute":
-        if not api_key:
-            raise ValueError("Quality Compute API Key is required for QualityComputeInterface.")
         return QualityComputeInterface(api_key=api_key, model_name=model_name)
     elif p == "anthropic":
-        if not api_key:
-            raise ValueError("Anthropic API Key is required for AnthropicInterface.")
         return AnthropicInterface(api_key=api_key, model_name=model_name, thinking_enabled=thinking_enabled, thinking_budget=thinking_budget)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider_name}")
@@ -221,7 +212,8 @@ def run_attempt(attempt_id: int,
                 max_rounds: int,
                 prompts: dict,
                 task_name: str,
-                output_dir: str) -> dict:
+                output_dir: str,
+                max_tokens: int = None) -> dict:  # Added max_tokens parameter
     """Runs a single attempt, handling specific logic for TTT, FS, and Solar."""
     logger.info(f"--- Starting Attempt {attempt_id + 1} (Task: {task_name}, Max Rounds/Steps: {max_rounds}) ---")
 
@@ -292,9 +284,7 @@ def run_attempt(attempt_id: int,
         # Get initial context from environment (state, available commands, etc.)
         initial_context = env.get_prompt_context()
         if 'goal' not in initial_context:  # Ensure goal is always present
-            initial_context['goal'] = prompts.get(
-                'goal_description', 'Goal not provided.'
-            )
+            initial_context['goal'] = prompts.get('goal_description', 'Goal not provided.')
 
         template = prompts.get('generate_template')
         if not template:
@@ -427,7 +417,7 @@ def run_attempt(attempt_id: int,
                 logger.debug(f"Calling conversational agent ({agent.model_name}) for {task_name}. History length: {len(conversation_history)}")
                 (agent_response_text,
                  token_usage_this_turn,
-                 raw_api_response_this_turn) = agent.generate_action_conversational(conversation_history)
+                 raw_api_response_this_turn) = agent.generate_action_conversational(conversation_history, max_tokens=max_tokens)
             else:  # Use single-shot generation (Tic Tac Toe)
                 # Format the prompt using the current context
                 current_context = prompt_context_before_action
@@ -446,7 +436,7 @@ def run_attempt(attempt_id: int,
                 logger.debug(f"Agent Prompt (Turn {current_turn_number}, Task: {task_name}, Non-Conversational).")  # Truncate if too long?
                 (agent_response_text,
                  token_usage_this_turn,
-                 raw_api_response_this_turn) = agent.generate_action(generation_prompt)
+                 raw_api_response_this_turn) = agent.generate_action(generation_prompt, max_tokens=max_tokens)
         except KeyError as e:
             logger.error(f"Agent prompt formatting error during turn {current_turn_number}: Missing key {e}", exc_info=True)
             step_error_this_turn = f"Prompt format error: {e}"
@@ -811,7 +801,7 @@ def run_attempt(attempt_id: int,
                         # Use the evaluator's specific image evaluation method
                         if hasattr(evaluator, 'evaluate_final_image_outcome'):
                             # This method handles path checking, encoding, API call, and score parsing
-                            final_score, raw_resp = evaluator.evaluate_final_image_outcome(image_path)
+                            final_score, raw_resp = evaluator.evaluate_final_image_outcome(image_path, max_tokens=max_tokens)  # Pass max_tokens if available
                             final_eval_response = f"Multimodal Eval Raw Response: {raw_resp}"  # Store raw for details
                             logger.info(f"Multimodal Final Score: {final_score} (Raw response logged)")
                         else:
@@ -830,7 +820,7 @@ def run_attempt(attempt_id: int,
                     # final_eval_input should be the final state string from the environment
                     # Use the evaluator's standard text evaluation method
                     if hasattr(evaluator, 'evaluate_final_outcome'):
-                        final_score, raw_resp = evaluator.evaluate_final_outcome(str(final_eval_input))
+                        final_score, raw_resp = evaluator.evaluate_final_outcome(str(final_eval_input), max_tokens=max_tokens)  # Pass max_tokens if available
                         final_eval_response = f"LLM Text Eval Raw Response: {raw_resp}"
                         logger.info(f"LLM Text Final Score: {final_score} (Raw response logged)")
                     else:
@@ -913,6 +903,7 @@ def main():
                         help="Logging level")
     parser.add_argument("--reasoning_effort", default="low", choices=["low", "high"],
                         help="Reasoning effort for Grok models (low, high). Ignored for other providers.")
+    parser.add_argument("--max_tokens", type=int, default=None, help="Max tokens for LLM responses (passed to agent and evaluator if supported).")
     parser.add_argument("--output_dir", default="results",
                         help="Base directory for saving results")
     parser.add_argument("--thinking", action='store_true', help="Enable extended thinking for Anthropic models")
@@ -979,29 +970,30 @@ def main():
     logger.info(f"Evaluator Provider: {evaluator_provider}, Evaluator Model: {evaluator_model_name}")
     logger.info(f"Attempts: {args.attempts}, Max Rounds/Steps: {args.rounds}")
     logger.info(f"Reasoning Effort (for Grok): {args.reasoning_effort}")  # Log reasoning effort if applicable
+    logger.info(f"Max Tokens (if set): {args.max_tokens}")
     logger.info(f"Log Level: {args.log_level}, Base Output Directory: {base_output_dir}")
     logger.info(f"Thinking Enabled for Anthropic: {args.thinking}, Thinking Budget: {args.thinking_budget}")
 
     # --- API Key Checks ---
     # Define a mapping from provider to API key name in config for correct lookup
     api_key_map = {
-    'gemini': 'gemini_api_key',
-    'openai': 'openai_api_key',
-    'grok': 'xai_api_key',
-    'quality_compute': 'quality_compute_api_key',
-    'anthropic': 'anthropic_api_key',  # ADD THIS LINE
-}
+        'gemini': 'gemini_api_key',
+        'openai': 'openai_api_key',
+        'grok': 'xai_api_key',
+        'quality_compute': 'quality_compute_api_key',
+        'anthropic': 'anthropic_api_key',  # ADD THIS LINE
+    }
 
     # Agent API key check with mapping
     agent_api_key_name = api_key_map.get(agent_provider)
     if not agent_api_key_name:
         logger.error(f"Unsupported agent provider: '{agent_provider}'. Cannot determine API key name.")
-        print(f"Error: Unsupported provider '{agent_provider}'. Supported providers: gemini, openai, grok, quality_compute.")
+        print(f"Error: Unsupported provider '{agent_provider}'. Supported providers: gemini, openai, grok, quality_compute, anthropic.")
         exit(1)
     agent_api_key = config.get(agent_api_key_name)
     if not agent_api_key:
         logger.error(f"Agent API Key '{agent_api_key_name}' for provider '{agent_provider}' is required but not found in config/env.")
-        print(f"Error: Agent API Key '{agent_api_key_name}' not found. Set the appropriate environment variable (e.g., GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY, QUALITY_COMPUTE_API_KEY).")
+        print(f"Error: Agent API Key '{agent_api_key_name}' not found. Set the appropriate environment variable (e.g., GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY, QUALITY_COMPUTE_API_KEY, ANTHROPIC_API_KEY).")
         exit(1)
     else:
         logger.info(f"Agent API Key loaded successfully for provider '{agent_provider}'.")
@@ -1026,12 +1018,12 @@ def main():
         # Load task prompts from files
         prompts = load_task_prompts(args.task, config.get('task_definitions_dir', 'tasks'))
 
-        # Instantiate Agent LLM Interface
-        agent_llm = get_llm_interface(agent_provider, agent_api_key, agent_model, thinking_enabled=args.thinking, thinking_budget=args.thinking_budget)
+        # Instantiate Agent LLM Interface with max_tokens
+        agent_llm = get_llm_interface(agent_provider, agent_api_key, agent_model, thinking_enabled=args.thinking, thinking_budget=args.thinking_budget, max_tokens=args.max_tokens)
         logger.info(f"Agent LLM interface ({type(agent_llm).__name__}) initialized for model {agent_model}.")
 
-        # Instantiate Evaluator LLM Interface (using potentially different provider/key/model)
-        final_evaluator_llm = get_llm_interface(evaluator_provider, evaluator_api_key, evaluator_model_name, thinking_enabled=args.thinking, thinking_budget=args.thinking_budget)
+        # Instantiate Evaluator LLM Interface (using potentially different provider/key/model) with max_tokens
+        final_evaluator_llm = get_llm_interface(evaluator_provider, evaluator_api_key, evaluator_model_name, thinking_enabled=args.thinking, thinking_budget=args.thinking_budget, max_tokens=args.max_tokens)
         logger.info(f"Final Evaluator LLM interface ({type(final_evaluator_llm).__name__}) initialized for model {evaluator_model_name}.")
 
         # Instantiate the Final Evaluator class (uses the final_evaluator_llm for scoring)
@@ -1090,7 +1082,8 @@ def main():
                 max_rounds=args.rounds,
                 prompts=prompts,
                 task_name=args.task,  # Pass task_name for use in metrics calculation
-                output_dir=attempt_output_dir  # Pass attempt-specific dir (used by SolarEnv implicitly now)
+                output_dir=attempt_output_dir,  # Pass attempt-specific dir (used by SolarEnv implicitly now)
+                max_tokens=args.max_tokens  # Pass max_tokens to run_attempt
             )
             attempt_history = attempt_result.get('history', [])  # Get history even if run failed mid-way
             all_results.append(attempt_result)

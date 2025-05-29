@@ -25,6 +25,7 @@ ADDED: QualityComputeInterface for calling the Quality Compute simulator backend
 ADDED: AnthropicInterface for calling Anthropic Claude models.
 UPDATED: Added support for Anthropic extended thinking with streaming.
 FIXED: Removed erroneous 'stream': True from Anthropic stream call to resolve TypeError.
+UPDATED: QualityComputeInterface to support additional parameters like max_tokens via **kwargs.
 """
 
 from __future__ import annotations
@@ -83,7 +84,7 @@ class LLMInterface(ABC):
 
     # -------- text generation (stateless) ----------------------------------
     @abstractmethod
-    def generate_action(self, prompt: str) -> LLMResponse:
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs for flexibility
         """One-off generation with a single prompt.
 
         Returns:
@@ -93,7 +94,7 @@ class LLMInterface(ABC):
 
     # -------- text generation (conversational) -----------------------------
     @abstractmethod
-    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         """Multi-turn generation given a message history.
 
         `history` is a list like:
@@ -107,7 +108,7 @@ class LLMInterface(ABC):
 
     # -------- multimodal generation ---------------------------------------
     @abstractmethod
-    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         """Image+text prompt where `contents` follows the Gemini style.
 
         Returns:
@@ -117,7 +118,7 @@ class LLMInterface(ABC):
 
     # -------- evaluation utility ------------------------------------------
     @abstractmethod
-    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         """Let the same LLM act as an evaluator with a plain prompt.
 
         Returns:
@@ -271,16 +272,16 @@ class GeminiInterface(LLMInterface):
         return None, None, None
 
     # --- public wrappers ---
-    def generate_action(self, prompt: str) -> LLMResponse:
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs, but not used in Gemini; can be ignored
         return self._call_api(prompt)
 
-    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         return self._call_api(history)
 
-    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         return self._call_api(contents)
 
-    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         return self._call_api(prompt)
 
 # ---------------------------------------------------------------------------
@@ -318,15 +319,16 @@ class OpenAIInterface(LLMInterface):
         return obj
 
     # ------------- /v1/chat/completions (true chat) ------------------------
-    def _call_chat_api(self, messages: List[Dict[str, Any]]) -> LLMResponse:
+    def _call_chat_api(self, messages: List[Dict[str, Any]], **kwargs) -> LLMResponse:  # Added **kwargs to handle extra params like max_tokens
         text_response: Optional[str] = None
         token_usage: TokenUsage = None
         resp: Optional["ChatCompletion"] = None
         try:
-            logger.debug("Calling OpenAI Chat API (chat.completions.create)")
+            logger.debug("Calling OpenAI Chat API (chat.completions.create) with additional kwargs: %s", kwargs)
             resp = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
+                **kwargs  # Pass any additional parameters like max_tokens, temperature
             )
             # Extract text response safely
             choice_list: Optional[List["OpenAIChoice"]] = getattr(resp, 'choices', None)
@@ -342,8 +344,6 @@ class OpenAIInterface(LLMInterface):
                     text_response = first_choice.message.content
                     finish_reason = getattr(first_choice, 'finish_reason', 'N/A')
                     logger.debug(f"OpenAI Chat extracted text. Finish reason: {finish_reason}")
-                    if finish_reason != 'stop' and finish_reason is not None:
-                        logger.warning(f"OpenAI Chat completion finished due to: {finish_reason}")
                 elif first_choice is not None:
                     logger.warning("OpenAI Chat choices[0].message is None.")
             elif choice_list is None:
@@ -365,9 +365,6 @@ class OpenAIInterface(LLMInterface):
 
             if text_response is None:
                 logger.warning("Failed to extract text response from OpenAI Chat API object. Returning None for text.")
-            else:
-                logger.debug("Text response successfully extracted from OpenAI Chat API.")
-
             return text_response, token_usage, resp
 
         except Exception as e:
@@ -452,13 +449,13 @@ class OpenAIInterface(LLMInterface):
             return None, None, None
 
     # ---------------- public wrappers -------------------------------------
-    def generate_action(self, prompt: str) -> LLMResponse:
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs to handle extra params
         # Prefer chat completions even for single turns
         logger.debug("Using chat API for single-shot generate_action request.")
         messages = [{"role": "user", "content": prompt}]
-        return self._call_chat_api(messages)
+        return self._call_chat_api(messages, **kwargs)  # Pass kwargs
 
-    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         # Convert Gemini format history (list of dicts with 'role', 'parts')
         # to OpenAI messages format (list of dicts with 'role', 'content').
         openai_messages: List[Dict[str, Any]] = []
@@ -519,9 +516,9 @@ class OpenAIInterface(LLMInterface):
             return None, None, None
 
         logger.debug(f"Converted history to OpenAI messages format (length: {len(openai_messages)}).")
-        return self._call_chat_api(openai_messages)
+        return self._call_chat_api(openai_messages, **kwargs)  # Pass kwargs
 
-    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         # OpenAI multimodal uses a list of content objects (text or image_url)
         # within the 'content' field of a user message in chat completions.
         logger.debug(f"Attempting OpenAI multimodal generation with model {self.model} using chat completions.")
@@ -590,13 +587,13 @@ class OpenAIInterface(LLMInterface):
             logger.warning(f"Multimodal input 'contents' list contains {len(contents)} entries, but only the first entry is processed for OpenAI multimodal calls.")
 
         logger.debug(f"Calling OpenAI chat API for multimodal request (messages: {len(openai_messages)}).")
-        return self._call_chat_api(openai_messages)
+        return self._call_chat_api(openai_messages, **kwargs)  # Pass kwargs
 
-    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         # Use chat completion for evaluation consistency
         logger.debug("Using chat API for evaluation request.")
         messages = [{"role": "user", "content": prompt}]
-        return self._call_chat_api(messages)
+        return self._call_chat_api(messages, **kwargs)  # Pass kwargs
 
 # ---------------------------------------------------------------------------
 #  xAI Grok implementation
@@ -629,18 +626,19 @@ class GrokInterface(LLMInterface):
             raise ValueError(f"Grok initialization failed: {e}") from e
 
     # --- Internal helper for chat API calls with retries ---
-    def _call_grok_chat_api(self, messages: List[Dict[str, Any]]) -> LLMResponse:
+    def _call_grok_chat_api(self, messages: List[Dict[str, Any]], **kwargs) -> LLMResponse:  # Added **kwargs to handle extra params like max_tokens
         text_response: Optional[str] = None
         token_usage: TokenUsage = None
         resp: Optional[Any] = None  # Raw response object
         try:
-            kwargs = {"model": self.model, "messages": messages}
+            kwargs['model'] = self.model  # Ensure model is set
+            kwargs['messages'] = messages  # Ensure messages are set
             if self.supports_reasoning:
                 kwargs["reasoning_effort"] = self.reasoning_effort  # Only add if supported
-                logger.debug(f"Calling Grok API with reasoning_effort '{self.reasoning_effort}'")
+                logger.debug(f"Calling Grok API with reasoning_effort '{self.reasoning_effort}' and additional kwargs: {kwargs}")
             else:
-                logger.debug("Calling Grok API without reasoning_effort (not supported).")
-            resp = self.client.chat.completions.create(**kwargs)
+                logger.debug("Calling Grok API without reasoning_effort (not supported) and additional kwargs: {kwargs}")
+            resp = self.client.chat.completions.create(**kwargs)  # Pass all kwargs, including max_tokens if provided
             # Store raw response
             raw_api_response = resp
 
@@ -688,11 +686,11 @@ class GrokInterface(LLMInterface):
             return None, None, None
 
     # --- Implement abstract methods ---
-    def generate_action(self, prompt: str) -> LLMResponse:
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         messages = [{"role": "user", "content": prompt}]
-        return self._call_grok_chat_api(messages)
+        return self._call_grok_chat_api(messages, **kwargs)
 
-    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         # Convert Gemini format history to OpenAI messages format
         openai_messages: List[Dict[str, Any]] = []
         allowed_openai_roles = {"system", "user", "assistant"}
@@ -716,6 +714,9 @@ class GrokInterface(LLMInterface):
                         text_content_parts.append(p)
                     elif isinstance(p, dict) and "text" in p and isinstance(p["text"], str):
                         text_content_parts.append(p["text"])
+                    elif isinstance(p, dict) and "source" in p and "inline_data" in p.get("source", {}):
+                        mime = p["source"]["inline_data"].get("mime_type", "unk")
+                        logger.debug(f"Ignoring image ({mime}) part in text conversational history conversion.")
                     else:
                         logger.warning(f"Skipping unsupported part type in history: {type(p)} / {p!r}")
                 content_value = "\n".join(text_content_parts).strip()
@@ -726,6 +727,7 @@ class GrokInterface(LLMInterface):
                 continue
 
             if not content_value:
+                logger.debug(f"Skipping history entry from role '{gemini_role}' with empty content after processing parts.")
                 continue
 
             if openai_messages and last_openai_role == openai_role:
@@ -745,15 +747,15 @@ class GrokInterface(LLMInterface):
             return None, None, None
 
         logger.debug(f"Converted history to Grok messages format (length: {len(openai_messages)}).")
-        return self._call_grok_chat_api(openai_messages)
+        return self._call_grok_chat_api(openai_messages, **kwargs)  # Pass kwargs
 
-    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         logger.warning("Multimodal generation is not supported by xAI Grok models.")
         return None, None, None
 
-    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         messages = [{"role": "user", "content": prompt}]
-        return self._call_grok_chat_api(messages)
+        return self._call_grok_chat_api(messages, **kwargs)
 
 # ---------------------------------------------------------------------------
 #  Quality Compute Simulator implementation
@@ -767,17 +769,20 @@ class QualityComputeInterface(LLMInterface):
             raise ValueError("Quality Compute API Key is required.")
         logger.info(f"QualityComputeInterface initialised with model: {model_name}, base URL: {self.base_url}")
 
-    def _call_quality_compute_api(self, input_data: str or List[Dict], is_conversational: bool = False) -> LLMResponse:
-        """Internal helper to call the Quality Compute /generate endpoint with retries."""
+    def _call_quality_compute_api(self, input_data: str or List[Dict], **kwargs) -> LLMResponse:
+        """Internal helper to call the Quality Compute /generate endpoint with retries and additional params."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": self.model_name,  # Pass the model name directly, e.g., "o4-mini-B8"
+            "model": self.model_name,  # Pass the model name directly
             "input": input_data,  # Can be string or list of messages
         }
-        # Optionally add other passthrough params if needed, but keep it simple for now
+        # Add any additional keyword arguments to the payload (e.g., max_tokens, temperature)
+        for key, value in kwargs.items():
+            if key not in ["model", "input"]:  # Avoid overwriting core fields
+                payload[key] = value  # Pass through parameters like max_tokens
 
         retries = 3
         delay = 10  # seconds
@@ -810,15 +815,15 @@ class QualityComputeInterface(LLMInterface):
                     time.sleep(delay)
                 else:
                     return None, None, {"status_code": 500, "error_detail": str(e)}
-        return None, None, None  # Fallback in case of unhandled errors
+        return None, None, None  # Fallback if all retries fail
 
-    def generate_action(self, prompt: str) -> LLMResponse:
-        return self._call_quality_compute_api(prompt)
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
+        return self._call_quality_compute_api(prompt, **kwargs)
 
-    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
         # --- START COPIED/ADAPTED CONVERSION LOGIC ---
         openai_messages: List[Dict[str, Any]] = []
-        allowed_openai_roles = {"system", "user", "assistant"} # Simulator likely expects these roles
+        allowed_openai_roles = {"system", "user", "assistant"}  # Simulator likely expects these roles
         last_openai_role = None
         for entry in history:
             gemini_role = entry.get("role", "user")
@@ -859,7 +864,7 @@ class QualityComputeInterface(LLMInterface):
                 last_message = openai_messages[-1]
                 if isinstance(last_message.get('content'), str):
                     last_message['content'] += "\n" + content_value
-                else: # Should not happen if content is always string, but safe fallback
+                else:  # Should not happen if content is always string, but safe fallback
                      openai_messages.append({"role": openai_role, "content": content_value})
                      last_openai_role = openai_role
             else:
@@ -872,17 +877,17 @@ class QualityComputeInterface(LLMInterface):
         logger.debug(f"Converted history to Quality Compute messages format (length: {len(openai_messages)}).")
         # --- END CONVERSION LOGIC ---
 
-        # Call the internal API helper with the *converted* messages list
-        return self._call_quality_compute_api(openai_messages) # Pass the converted list
+        # Call the internal API helper with the converted messages list and pass kwargs
+        return self._call_quality_compute_api(openai_messages, **kwargs)  # Pass the converted list and additional kwargs
 
-    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         logger.warning("Multimodal generation is not supported by Quality Compute interface. Falling back to text-only.")
-        # Attempt to extract text from contents and call as text prompt
+        # Extract text from contents
         text_content = " ".join([part.get("text", "") for item in contents for part in item.get("parts", []) if isinstance(part, dict) and "text" in part])
-        return self._call_quality_compute_api(text_content)
+        return self._call_quality_compute_api(text_content, **kwargs)
 
-    def evaluate_outcome(self, prompt: str) -> LLMResponse:
-        return self._call_quality_compute_api(prompt)
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:
+        return self._call_quality_compute_api(prompt, **kwargs)
 
 # ---------------------------------------------------------------------------
 #  Anthropic implementation
@@ -906,7 +911,7 @@ class AnthropicInterface(LLMInterface):
             raise ValueError(f"Anthropic initialization failed: {e}") from e
 
     # --- Internal helper for chat API calls with retries ---
-    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: Optional[str] = None) -> LLMResponse:
+    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: Optional[str] = None, **kwargs) -> LLMResponse:  # Added **kwargs
         text_response: Optional[str] = None
         token_usage: TokenUsage = None
         resp: Optional["Message"] = None
@@ -916,25 +921,31 @@ class AnthropicInterface(LLMInterface):
         
         for attempt in range(retries):
             try:
-                logger.debug(f"Calling Anthropic API with streaming (Attempt {attempt+1}/{retries})")
+                logger.debug(f"Calling Anthropic API with streaming (Attempt {attempt+1}/{retries}) and additional kwargs: {kwargs}")
                 
-                kwargs = {
+                anthropic_kwargs = {
                     "model": self.model,
-                    "max_tokens": 64000,
+                    "max_tokens": 64000,  # Default max_tokens, can be overridden by kwargs
                     "messages": messages,
                 }
                 
+                # Add system prompt if provided
                 if system_prompt:
-                    kwargs["system"] = system_prompt
+                    anthropic_kwargs["system"] = system_prompt
                 
+                # Add any additional kwargs (e.g., max_tokens, temperature)
+                for key, value in kwargs.items():
+                    if key not in ["model", "messages", "system"]:  # Avoid overwriting core fields
+                        anthropic_kwargs[key] = value  # Pass through parameters like max_tokens
+
                 if self.thinking_enabled:
-                    kwargs["thinking"] = {"type": "enabled", "budget_tokens": self.thinking_budget}
+                    anthropic_kwargs["thinking"] = {"type": "enabled", "budget_tokens": self.thinking_budget}
                     logger.debug(f"Extended thinking enabled with budget: {self.thinking_budget}")
                 else:
-                    kwargs["thinking"] = {"type": "disabled"}  # Explicitly disable if not enabled
+                    anthropic_kwargs["thinking"] = {"type": "disabled"}  # Explicitly disable if not enabled
                 
                 accumulated_text_parts: List[str] = []
-                with self.client.messages.stream(**kwargs) as stream:
+                with self.client.messages.stream(**anthropic_kwargs) as stream:
                     for event in stream:
                         if event.type == "content_block_delta":
                             if event.delta.type == "text_delta":
@@ -1028,19 +1039,19 @@ class AnthropicInterface(LLMInterface):
         return anthropic_messages
 
     # --- Implement abstract methods ---
-    def generate_action(self, prompt: str) -> LLMResponse:
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         anthropic_messages = [{"role": "user", "content": prompt}]
-        return self._call_anthropic_api(anthropic_messages)
+        return self._call_anthropic_api(anthropic_messages, **kwargs)
 
-    def generate_action_conversational(self, history: List[Dict]) -> LLMResponse:
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         anthropic_messages = self._convert_to_anthropic_messages(history)
         if not anthropic_messages:
             return None, None, None
         
         logger.debug(f"Converted history to Anthropic messages format (length: {len(anthropic_messages)})")
-        return self._call_anthropic_api(anthropic_messages)
+        return self._call_anthropic_api(anthropic_messages, **kwargs)
 
-    def generate_content_multimodal(self, contents: List[Dict]) -> LLMResponse:
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
         logger.warning("Multimodal support for Anthropic is not fully implemented yet. Converting to text-only.")
         
         messages = []
@@ -1067,11 +1078,11 @@ class AnthropicInterface(LLMInterface):
         
         if text_content:
             messages.append({"role": anthropic_role, "content": text_content.strip()})
-            return self._call_anthropic_api(messages)
+            return self._call_anthropic_api(messages, **kwargs)
         else:
             logger.error("No valid text content found in multimodal input")
             return None, None, None
 
-    def evaluate_outcome(self, prompt: str) -> LLMResponse:
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
         messages = [{"role": "user", "content": prompt}]
-        return self._call_anthropic_api(messages)
+        return self._call_anthropic_api(messages, **kwargs)
