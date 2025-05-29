@@ -762,7 +762,7 @@ class QualityComputeInterface(LLMInterface):
     """Interface for Quality Compute simulator backend, with hardcoded URL."""
     def __init__(self, api_key: str, model_name: str):
         super().__init__(api_key, model_name)
-        self.base_url = "http://localhost:5002"  # Hardcoded URL as per instructions; change this to your actual simulator URL
+        self.base_url = "https://qualitycompute.henosis.us"  # Hardcoded URL as per instructions; change this to your actual simulator URL
         if not api_key:
             raise ValueError("Quality Compute API Key is required.")
         logger.info(f"QualityComputeInterface initialised with model: {model_name}, base URL: {self.base_url}")
@@ -783,7 +783,7 @@ class QualityComputeInterface(LLMInterface):
         delay = 10  # seconds
         for attempt in range(retries):
             try:
-                response = requests.post(f"{self.base_url}/quality_compute/generate", headers=headers, json=payload)
+                response = requests.post(f"{self.base_url}/api/generate", headers=headers, json=payload)
                 if response.status_code == 200:
                     resp_json = response.json()
                     text_response = resp_json.get("selected_text")
@@ -920,7 +920,7 @@ class AnthropicInterface(LLMInterface):
                 
                 kwargs = {
                     "model": self.model,
-                    "max_tokens": 32000,
+                    "max_tokens": 64000,
                     "messages": messages,
                 }
                 

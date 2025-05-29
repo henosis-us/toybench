@@ -20,7 +20,7 @@ def load_config():
         'xai_api_key':         os.getenv('XAI_API_KEY'),  # Added for xAI Grok support
         
         # Anthropic Claude
-        'anthropic_api_key':   os.getenv('ANTHROPIC_API_KEY'),  # New: Anthropic API key
+        'anthropic_api_key':   os.getenv('ANTHROPIC_API_KEY2'),  # New: Anthropic API key
         
         # Quality Compute Simulator
         'quality_compute_api_key': os.getenv('QC_API_KEY'),  # API key for Quality Compute simulator
