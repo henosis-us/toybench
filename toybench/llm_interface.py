@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import time
+import json
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
@@ -770,52 +771,76 @@ class QualityComputeInterface(LLMInterface):
         logger.info(f"QualityComputeInterface initialised with model: {model_name}, base URL: {self.base_url}")
 
     def _call_quality_compute_api(self, input_data: str or List[Dict], **kwargs) -> LLMResponse:
-        """Internal helper to call the Quality Compute /generate endpoint with retries and additional params."""
+        """Internal helper to call Quality Compute API with immediate response logging"""
+        import json  # Ensure json is imported locally
+        
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": self.model_name,  # Pass the model name directly
-            "input": input_data,  # Can be string or list of messages
+            "model": self.model_name,
+            "input": input_data,
         }
-        # Add any additional keyword arguments to the payload (e.g., max_tokens, temperature)
+        
         for key, value in kwargs.items():
-            if key not in ["model", "input"]:  # Avoid overwriting core fields
-                payload[key] = value  # Pass through parameters like max_tokens
+            if key not in ["model", "input"]:
+                payload[key] = value
 
-        retries = 3
-        delay = 10  # seconds
+        timeout_seconds = 300
+        retries = 5
+        base_delay = 30
+        
         for attempt in range(retries):
             try:
-                response = requests.post(f"{self.base_url}/api/generate", headers=headers, json=payload)
+                logger.debug(f"Calling Quality Compute API (Attempt {attempt+1}/{retries})")
+                start_time = time.time()
+                response = requests.post(
+                    f"{self.base_url}/api/generate",
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout_seconds
+                )
+                duration = time.time() - start_time
+                
+                # IMMEDIATE RESPONSE LOGGING
+                logger.error(f"QC API Response (Attempt {attempt+1}):")
+                logger.error(f"  Status: {response.status_code}")
+                logger.error(f"  Headers: {dict(response.headers)}")
+                logger.error(f"  Content (first 500 chars): {response.text[:500]}")
+                logger.error(f"  Duration: {duration:.2f}s")
+                
                 if response.status_code == 200:
-                    resp_json = response.json()
-                    text_response = resp_json.get("selected_text")
-                    usage_dict = resp_json.get("usage", {})
-                    raw_api_response = resp_json  # Store the entire response for debugging
-                    # Parse usage to match expected format
-                    token_usage = {
-                        "input_tokens": usage_dict.get("input_tokens", 0),
-                        "output_tokens": usage_dict.get("output_tokens", 0),
-                        "reasoning_tokens": usage_dict.get("reasoning_tokens", 0),
-                        "total_tokens": usage_dict.get("total_tokens", 0),
-                    }
-                    return text_response, token_usage, raw_api_response
+                    try:
+                        resp_json = response.json()
+                        text_response = resp_json.get("selected_text")
+                        usage_dict = resp_json.get("usage", {})
+                        
+                        token_usage = {
+                            "input_tokens": usage_dict.get("input_tokens", 0),
+                            "output_tokens": usage_dict.get("output_tokens", 0),
+                            "reasoning_tokens": usage_dict.get("reasoning_tokens", 0),
+                            "total_tokens": usage_dict.get("total_tokens", 0),
+                        }
+                        return text_response, token_usage, resp_json
+                    except json.JSONDecodeError:
+                        logger.error("JSON decode failed - dumping full response")
+                        logger.error(f"Full response: {response.text}")
+                        raise
                 else:
-                    error_detail = response.json().get("error", "Unknown error from Quality Compute API")
-                    logger.warning(f"Quality Compute API error (status {response.status_code}): {error_detail}")
-                    if attempt < retries - 1:
-                        time.sleep(delay)
-                    else:
-                        return None, None, {"status_code": response.status_code, "error_detail": error_detail}
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Network error calling Quality Compute API (attempt {attempt+1}/{retries}): {e}")
+                    error_detail = response.text[:500]
+                    logger.warning(f"Non-200 response: {error_detail}")
+                    
+            except Exception as e:
+                logger.error(f"API call failed: {str(e)}")
                 if attempt < retries - 1:
-                    time.sleep(delay)
+                    sleep_time = base_delay * (2 ** attempt)
+                    logger.info(f"Retrying in {sleep_time}s...")
+                    time.sleep(sleep_time)
                 else:
-                    return None, None, {"status_code": 500, "error_detail": str(e)}
-        return None, None, None  # Fallback if all retries fail
+                    return None, None, {"error": str(e)}
+        
+        return None, None, None
 
     def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
         return self._call_quality_compute_api(prompt, **kwargs)
