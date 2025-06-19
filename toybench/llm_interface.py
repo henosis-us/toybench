@@ -1,8 +1,8 @@
 # llm_interface.py
 """LLM interface abstractions for ToyBench.
 
-* Google Gemini models via `google-generativeai`
-* OpenAI models via **both**
+* Google Gemini models via `google-genai`
+* OpenAI models via both
     * `/v1/chat/completions` – used for true conversational history, and
     * `/v1/responses`         – kept for single-shot prompts and the legacy
                               flattened-string path.
@@ -10,14 +10,14 @@
 * Quality Compute Simulator – added for integration with the custom backend simulator.
 * Anthropic Claude models via `anthropic`
 
-The conversational path now sends an **array of role-tagged messages**
+The conversational path now sends an array of role-tagged messages
 (`user` / `assistant`) instead of concatenating everything into one big
 string, fully matching the OpenAI chat-completion spec.
 
 MODIFIED TO EXTRACT AND RETURN TOKEN USAGE DATA AND RAW API RESPONSE OBJECT.
 CORRECTED TYPE HINTS FOR STATIC ANALYSIS USING TYPE_CHECKING.
 MODIFIED GeminiInterface to improve text extraction and logging on failure,
-handling `RepeatedComposite` types.
+handling `RepeatedComposite` types, and to support thinkingBudget extraction.
 Improved OpenAIInterface methods (preferring chat, better multimodal).
 ADDED: xAI GrokInterface for Grok 3 Mini with reasoning support.
 UPDATED: Added support in GrokInterface for models that may not support reasoning_effort.
@@ -26,24 +26,32 @@ ADDED: AnthropicInterface for calling Anthropic Claude models.
 UPDATED: Added support for Anthropic extended thinking with streaming.
 FIXED: Removed erroneous 'stream': True from Anthropic stream call to resolve TypeError.
 UPDATED: QualityComputeInterface to support additional parameters like max_tokens via **kwargs.
-"""
+UPDATED: GeminiInterface to support thinkingBudget for Gemini 2.5 models and extract thoughts_token_count for better logging and serialization.
+FIXED: GeminiInterface now passes thinking_config using google.genai.types objects as required by the client library.
+UPDATED: Fixed image part handling in Gemini multimodal calls with added error handling and logging for Pydantic validation.
+ADDED: Enhanced logging for image validation errors in Gemini API calls.
+
+"""  # Updated for Google GenAI SDK migration, image handling fix, and additional logging
 
 from __future__ import annotations
 
 import logging
 import time
 import json
+import base64
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 # Import heavy dependencies only for type checking
 if TYPE_CHECKING:
-    from google.generativeai.types import (
+    from google.genai.types import (  # Updated to google.genai.types
         Candidate,
         GenerateContentResponse,
         PromptFeedback,
         UsageMetadata,
+        HttpOptions,  # Import HttpOptions for type checking
     )
+    from google.genai import types as genai_types  # Alias for types module
     from openai.types.chat import ChatCompletion
     from openai.types.chat.chat_completion import Choice as OpenAIChoice
     from openai.types.completion_usage import CompletionUsage
@@ -51,9 +59,11 @@ if TYPE_CHECKING:
 
 # Keep runtime imports minimal or handle ImportErrors if necessary
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types as genai_types  # Correct runtime import for new SDK
 except ImportError:
-    genai = None  # Handle missing library gracefully if needed elsewhere
+    genai = None
+    genai_types = None
 
 try:
     from openai import OpenAI
@@ -71,8 +81,8 @@ logger = logging.getLogger(__name__)
 
 # Define type aliases for clarity
 TokenUsage = Optional[Dict[str, int | None]]
-RawAPIResponse = Optional[Any]  # Use Any for the raw response object type
-LLMResponse = Tuple[Optional[str], TokenUsage, RawAPIResponse]  # <<< MODIFIED: Added RawAPIResponse
+RawAPIResponse = Optional[Any]  # Use Any for the raw response object type, but aim for serializability
+LLMResponse = Tuple[Optional[str], TokenUsage, RawAPIResponse]  # MODIFIED: Added RawAPIResponse
 
 # ---------------------------------------------------------------------------
 #  Base abstract interface
@@ -128,27 +138,76 @@ class LLMInterface(ABC):
         pass
 
 # ---------------------------------------------------------------------------
-#  Gemini implementation
+#  Gemini implementation (updated for Google GenAI SDK and image handling)
 # ---------------------------------------------------------------------------
 class GeminiInterface(LLMInterface):
-    def __init__(self, api_key: str, model_name: str):
+    def __init__(self, api_key: str, model_name: str, thinking_enabled: bool = True, thinking_budget: Optional[int] = None):
         super().__init__(api_key, model_name)
         if not api_key:
             raise ValueError("Gemini API Key is required.")
-        if genai is None:
-            raise ImportError("google.generativeai library is not installed. Please install it to use GeminiInterface.")
+        if genai is None or genai_types is None:
+            raise ImportError("google-genai library is not installed or types module is missing. Please install it to use GeminiInterface.")
         try:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel(model_name)
-            logger.info("GeminiInterface initialised with model: %s", model_name)
+            # Set HTTP options at client level for timeout
+            http_options = genai_types.HttpOptions(timeout=1000000)  # 1000 seconds in milliseconds
+            self.client = genai.Client(api_key=api_key, http_options=http_options)  # Set timeout here
+            self.thinking_enabled = thinking_enabled
+            self.thinking_budget = thinking_budget
+            self._validate_model_and_thinking_budget()  # Validate model and thinking budget on init
+            logger.info("GeminiInterface initialised with model: %s, thinking_enabled: %s, thinking_budget: %s", model_name, thinking_enabled, thinking_budget if thinking_budget is not None else "auto")
         except Exception as e:
-            logger.error(f"Failed to configure Gemini or initialize model {model_name}: {e}", exc_info=True)
+            logger.error(f"Failed to configure Gemini or initialize client for model {model_name}: {e}", exc_info=True)
             raise ValueError(f"Gemini initialization failed: {e}") from e
+
+    def _validate_model_and_thinking_budget(self):
+        """Validate the model name and thinking budget based on Google AI documentation."""
+        model_lower = self.model_name.lower()
+        # Assume if "preview" is in the name, it might support thinking, but validate specifically
+        is_flash_2_5 = "2.5-flash" in model_lower
+        is_pro_2_5 = "2.5-pro" in model_lower or "2.5-pro-preview" in model_lower
+
+        if is_pro_2_5:
+            # Gemini 2.5 Pro: thinkingBudget must be 128-32768, cannot disable thinking
+            if self.thinking_budget is not None:
+                if not (128 <= self.thinking_budget <= 32768):
+                    logger.warning(f"Invalid thinking_budget for Gemini 2.5 Pro model ({self.model_name}). Must be between 128 and 32768. Setting to default auto behavior.")
+                    self.thinking_budget = None  # Reset to auto
+                    self.thinking_enabled = True  # Pro models always have thinking, lowest is 128
+                elif self.thinking_budget < 128:
+                    logger.warning(f"thinking_budget {self.thinking_budget} too low for Gemini 2.5 Pro. Minimum is 128. Setting to default auto behavior.")
+                    self.thinking_budget = None
+                    self.thinking_enabled = True
+            else:
+                logger.debug(f"thinking_budget not set for Gemini 2.5 Pro ({self.model_name}); model will dynamically adjust.")
+                self.thinking_enabled = True  # Pro models always have thinking enabled
+
+        elif is_flash_2_5:
+            # Gemini 2.5 Flash: thinkingBudget can be 0-24576, 0 disables thinking
+            if self.thinking_budget is not None:
+                if not (0 <= self.thinking_budget <= 24576):
+                    logger.warning(f"Invalid thinking_budget for Gemini 2.5 Flash model ({self.model_name}). Must be between 0 and 24576. Setting to default auto behavior.")
+                    self.thinking_budget = None  # Reset to auto
+                    self.thinking_enabled = True  # Allow auto if budget invalid
+                elif self.thinking_budget == 0:
+                    logger.debug(f"thinking_budget is 0 for Gemini 2.5 Flash ({self.model_name}). Thinking will be disabled.")
+                    self.thinking_enabled = False  # Explicitly disable if budget is 0
+                else:
+                    self.thinking_enabled = True  # Enable if non-zero valid budget
+            else:
+                logger.debug(f"thinking_budget not set for Gemini 2.5 Flash ({self.model_name}); model will dynamically adjust.")
+                self.thinking_enabled = True  # Default to enabled for auto budget if not explicitly set to 0
+
+        else:
+            # For other models, thinkingBudget is not supported
+            if self.thinking_budget is not None or self.thinking_enabled:
+                logger.warning(f"Model '{self.model_name}' does not explicitly support thinkingBudget. Ignoring thinking_enabled and thinking_budget settings.")
+            self.thinking_enabled = False  # Ensure thinking is off for unsupported models
+            self.thinking_budget = None
 
     # --- internal helper with retries -------------------------------------
     def _call_api(
         self,
-        prompt_or_contents,
+        prompt_or_contents: Any,  # Can be str, list[dict], or other types
         retries: int = 3,
         delay: int = 10,
     ) -> LLMResponse:
@@ -157,11 +216,106 @@ class GeminiInterface(LLMInterface):
         token_usage: TokenUsage = None
         raw_api_response_for_return = None
 
+        # Convert prompt_or_contents to a list of genai_types.Content objects with proper Part handling
+        contents_to_use = []
+        if isinstance(prompt_or_contents, str):
+            # For single-string prompts, create a user content object with a Part
+            contents_to_use.append(genai_types.Content(role="user", parts=[genai_types.Part(text=prompt_or_contents)]))
+        elif isinstance(prompt_or_contents, list):
+            # For lists (conversational or multimodal), convert each item to a Content object
+            for item in prompt_or_contents:
+                if isinstance(item, dict) and 'role' in item and 'parts' in item:
+                    parts_list = []
+                    for part in item.get('parts', []):
+                        if isinstance(part, str):
+                            parts_list.append(genai_types.Part(text=part))
+                        elif isinstance(part, dict):
+                            if "text" in part:
+                                parts_list.append(genai_types.Part(text=part["text"]))
+                            elif "inline_data" in part:  # Corrected condition to match observed data structure
+                                inline_data_dict = part["inline_data"]  # Direct access to inline_data
+                                mime_type = inline_data_dict.get("mime_type")
+                                data = inline_data_dict.get("data")
+                                if mime_type and data:
+                                    try:
+                                        # Decode base64 data to bytes if it's a string
+                                        if isinstance(data, str):
+                                            data_bytes = base64.b64decode(data)  # Decode base64 string to bytes
+                                        elif isinstance(data, bytes):
+                                            data_bytes = data  # Already bytes, no need to decode
+                                        else:
+                                            raise ValueError(f"Unsupported data type for inline_data: {type(data)}")
+                                        # Now create Part from data bytes
+                                        parts_list.append(genai_types.Part.from_bytes(mime_type=mime_type, data=data_bytes))
+                                        logger.debug(f"Successfully created Part from decoded data with mime_type: {mime_type}")
+                                    except base64.binascii.Error as decode_e:
+                                        logger.error(f"Base64 decoding error for part data: {decode_e}. Part data: {part}", exc_info=True)
+                                    except Exception as e:
+                                        logger.error(f"Failed to create Part from data: {e}. Part data: {part}", exc_info=True)
+                                else:
+                                    logger.warning(f"Malformed inline_data part: {part}. Skipping.")
+                            else:
+                                logger.warning(f"Unsupported part dict structure: {part}. Skipping part. Debug: keys={list(part.keys())}")
+                        else:
+                            logger.warning(f"Unsupported part type in history: {type(part)} / {part}. Skipping part. Debug: part={part}")
+                    if parts_list:
+                        contents_to_use.append(genai_types.Content(role=item['role'], parts=parts_list))
+                else:
+                    logger.warning(f"Skipping invalid item in contents: {item}. Expected dict with 'role' and 'parts'.")
+
+        # Add enhanced logging for contents_to_use before API call with null checks
+        logger.debug(f"API call contents_to_use summary: {len(contents_to_use)} content items.")
+        for idx, content in enumerate(contents_to_use):
+            role = content.role
+            parts = content.parts  # parts could be None, but genai_types.Content should ensure it's a list
+            parts_count = len(parts) if parts is not None else 0  # Safe count with null check
+            logger.debug(f"Content {idx} role: {role}, number of parts: {parts_count}")
+            if parts is not None:  # Only iterate if parts is not None
+                for part_idx, part in enumerate(parts):
+                    if hasattr(part, 'text'):
+                        part_text = getattr(part, 'text', None)
+                        if part_text is not None:  # Check for None before accessing length or slicing
+                            text_preview = (part_text[:50] + '...') if len(part_text) > 50 else part_text
+                            logger.debug(f"  Part {part_idx} is text (preview): {text_preview}")
+                        else:
+                            logger.debug(f"  Part {part_idx} has 'text' attribute but it is None. Skipping preview log.")
+                    elif hasattr(part, 'inline_data'):
+                        inline_data = getattr(part, 'inline_data', None)
+                        if inline_data is not None:
+                            mime_type = inline_data.mime_type if hasattr(inline_data, 'mime_type') else 'N/A'
+                            data_preview = (inline_data.data[:20] + '...') if inline_data.data and len(inline_data.data) > 20 else str(inline_data.data)
+                            logger.debug(f"  Part {part_idx} is inline_data, mime_type: {mime_type}, data preview: {data_preview}")
+                        else:
+                            logger.debug(f"  Part {part_idx} has 'inline_data' attribute but it is None.")
+                    else:
+                        logger.debug(f"  Part {part_idx} is of unknown type: {type(part)}")
+            else:
+                logger.debug(f"Content {idx} has no parts or parts is None.")
+
         for attempt in range(retries):
             try:
-                logger.debug(f"Calling Gemini API (Attempt {attempt+1}/{retries})")
-                resp = self.model.generate_content(contents=prompt_or_contents, request_options={"timeout": 1000})
-                raw_api_response_for_return = resp
+                logger.debug(f"Calling Gemini API (Attempt {attempt+1}/{retries}) with thinking_enabled: {self.thinking_enabled}, thinking_budget: {self.thinking_budget}")
+
+                # Prepare generation config with thinking config if enabled
+                config_obj = None
+                if self.thinking_enabled and genai_types is not None:
+                    thinking_config_params = {}
+                    if self.thinking_budget is not None:
+                        thinking_config_params["thinking_budget"] = self.thinking_budget
+                    thinking_config_obj = genai_types.ThinkingConfig(**thinking_config_params)
+                    config_obj = genai_types.GenerateContentConfig(thinking_config=thinking_config_obj)
+                    logger.debug("Successfully created GenerateContentConfig with ThinkingConfig.")
+
+                # Call generate_content with the converted contents
+                resp = self.client.models.generate_content(  # Updated to client.models.generate_content
+                    model=self.model_name,
+                    contents=contents_to_use,  # Use the converted list of Content objects
+                    config=config_obj,  # Renamed from generation_config to config
+                )
+                raw_api_response_for_return = self._serialize_response(resp)
+
+                # Log raw response type for debugging serialization issues
+                logger.debug(f"Raw API Response type: {type(resp)}, serialized version (truncated): {str(raw_api_response_for_return)[:500]}...")
 
                 # --- Enhanced Text Extraction Logic ---
                 text_response = None
@@ -209,11 +363,11 @@ class GeminiInterface(LLMInterface):
 
                         content_obj = getattr(first_candidate, 'content', None)
                         if content_obj and hasattr(content_obj, 'parts'):
-                            parts_list = getattr(content_obj, 'parts', None)
-                            if parts_list is not None and hasattr(parts_list, '__iter__'):
-                                parts_count = len(parts_list) if hasattr(parts_list, '__len__') else 'unknown'
-                                logger.debug(f"Candidate 0 content has {parts_count} part(s). Type: {type(parts_list)}")
-                                for part in parts_list:
+                            parts_list_resp = getattr(content_obj, 'parts', None)
+                            if parts_list_resp is not None and hasattr(parts_list_resp, '__iter__'):
+                                parts_count = len(parts_list_resp) if hasattr(parts_list_resp, '__len__') else 'unknown'
+                                logger.debug(f"Candidate 0 content has {parts_count} part(s). Type: {type(parts_list_resp)}")
+                                for part in parts_list_resp:
                                     if hasattr(part, 'text'):
                                         part_text = getattr(part, 'text', None)
                                         if isinstance(part_text, str) and part_text:
@@ -222,8 +376,8 @@ class GeminiInterface(LLMInterface):
                                             break  # Found text, stop looking
                                         elif part_text is not None:
                                             logger.debug(f"Found part with 'text' attribute, but text is empty or not a string: {type(part_text)}")
-                            elif parts_list is not None:
-                                logger.warning(f"Candidate 0 content.parts is not iterable. Type: {type(parts_list)}")
+                            elif parts_list_resp is not None:
+                                logger.warning(f"Candidate 0 content.parts is not iterable. Type: {type(parts_list_resp)}")
                             else:
                                 logger.warning("Candidate 0 content.parts is None.")
                         elif content_obj:
@@ -238,16 +392,27 @@ class GeminiInterface(LLMInterface):
                     else:
                         logger.warning("Gemini response candidates list is empty.")
 
-                # Extract Token Usage
+                # Extract Token Usage, including thoughts_token_count if available
                 token_usage = None
                 usage_meta: Optional["UsageMetadata"] = getattr(resp, 'usage_metadata', None)
                 if usage_meta:
                     prompt_tokens = getattr(usage_meta, 'prompt_token_count', None)
                     candidates_tokens = getattr(usage_meta, 'candidates_token_count', None)
+                    thoughts_tokens = getattr(usage_meta, 'thoughts_token_count', None)  # Extract thoughts_token_count for thinking budget
                     total_tokens = getattr(usage_meta, 'total_token_count', None)
-                    if prompt_tokens is not None or candidates_tokens is not None or total_tokens is not None:
-                        token_usage = {"input_tokens": prompt_tokens, "output_tokens": candidates_tokens, "total_tokens": total_tokens}
-                        logger.debug(f"Gemini API Token Usage: {token_usage}")
+                    
+                    logger.debug(f"Raw usage_metadata attributes: prompt={prompt_tokens}, candidates={candidates_tokens}, thoughts={thoughts_tokens}, total={total_tokens}")
+
+                    if prompt_tokens is not None or candidates_tokens is not None or total_tokens is not None or thoughts_tokens is not None:
+                        token_usage = {
+                            "input_tokens": prompt_tokens,
+                            "output_tokens": candidates_tokens,
+                            "reasoning_tokens": thoughts_tokens,  # Map to reasoning_tokens for consistency
+                            "total_tokens": total_tokens
+                        }
+                        # Remove None values and log for debugging
+                        token_usage = {k: v for k, v in token_usage.items() if v is not None}
+                        logger.debug(f"Gemini API Token Usage (extracted and filtered): {token_usage}")
                 else:
                     logger.debug("No usage_metadata found in Gemini response.")
 
@@ -259,30 +424,71 @@ class GeminiInterface(LLMInterface):
                 return text_response, token_usage, raw_api_response_for_return
 
             except Exception as e:
-                logger.warning(
-                    "Gemini API error during call/processing (%s/%s): %s", attempt + 1, retries, e, exc_info=True
-                )
-                raw_api_response_for_return = None
+                # Enhanced logging for error diagnosis, including full input data if possible
+                error_message = str(e)
+                logger.error(f"Gemini API error during call/processing (Attempt {attempt+1}/{retries}): {error_message}", exc_info=True)
+                logger.error(f"Error details: Status code may indicate invalid input. Input data (full): {json.dumps(prompt_or_contents, default=str, ensure_ascii=False)}")
+                raw_api_response_for_return = None  # Ensure this is set even in error cases
                 if attempt < retries - 1:
                     time.sleep(delay * (attempt + 1))
                 else:
-                    logger.error("Gemini API failed after %s attempts", retries)
+                    logger.error("Gemini API failed after %s attempts. Check input data for validity, especially image parts.", retries)
                     return None, None, None
 
         logger.error("Gemini API call failed after all retries or encountered unhandled issue.")
         return None, None, None
 
+    def _serialize_response(self, response: Any) -> Dict:
+        """Serialize the API response to a dictionary for JSON compatibility."""
+        try:
+            # Check if response has a model_dump (Pydantic v2) or to_dict (older Pydantic/dataclasses_json)
+            if hasattr(response, 'model_dump'):
+                return response.model_dump()
+            elif hasattr(response, 'to_dict'):
+                return response.to_dict()
+            # If it's a google.genai.types.GenerateContentResponse, attempt serialization
+            if isinstance(response, (dict, list)):  # Already a dict or list, no need to convert
+                return response
+            
+            # Attempt to convert to dict via json.loads(json.dumps) for deeply nested types
+            try:
+                return json.loads(json.dumps(response.__dict__))
+            except (TypeError, AttributeError):
+                # Fallback to direct attribute access if json.dumps fails
+                serializable_dict = {}
+                for key in dir(response):
+                    if not key.startswith('_') and not callable(getattr(response, key)):
+                        value = getattr(response, key)
+                        # Attempt to serialize nested objects recursively, or convert to string
+                        if hasattr(value, 'model_dump'):
+                            serializable_dict[key] = value.model_dump()
+                        elif hasattr(value, 'to_dict'):
+                            serializable_dict[key] = value.to_dict()
+                        elif isinstance(value, (int, float, str, bool, type(None))):
+                            serializable_dict[key] = value
+                        elif isinstance(value, (list, dict)):
+                            # Recursive serialization for lists/dicts containing non-serializable items
+                            serializable_dict[key] = json.loads(json.dumps(value, default=str))
+                        else:
+                            # Convert complex objects like enums, RepeatedComposite to string
+                            serializable_dict[key] = str(value)
+                return serializable_dict
+
+        except Exception as e:
+            logger.warning(f"Failed to serialize response object: {e}. Returning empty dict for safety.", exc_info=True)
+            return {}  # Return an empty dict to avoid serialization errors
+
     # --- public wrappers ---
-    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs, but not used in Gemini; can be ignored
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
         return self._call_api(prompt)
 
-    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
         return self._call_api(history)
 
-    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         return self._call_api(contents)
 
-    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:
         return self._call_api(prompt)
 
 # ---------------------------------------------------------------------------
@@ -364,13 +570,45 @@ class OpenAIInterface(LLMInterface):
             else:
                 logger.debug("No usage data found in OpenAI Chat response.")
 
+            # Serialize raw response for JSON compatibility
+            raw_api_response_serialized = self._serialize_response(resp)
+            logger.debug(f"Serialized OpenAI Raw API Response: {raw_api_response_serialized}")
+
             if text_response is None:
                 logger.warning("Failed to extract text response from OpenAI Chat API object. Returning None for text.")
-            return text_response, token_usage, resp
+            return text_response, token_usage, raw_api_response_serialized
 
         except Exception as e:
             logger.error("OpenAI chat.completions error: %s", e, exc_info=True)
             return None, None, None
+
+    def _serialize_response(self, response: Any) -> Dict:
+        """Serialize the API response to a dictionary for JSON compatibility."""
+        try:
+            # Attempt to use built-in serialization
+            if hasattr(response, 'model_dump'):
+                return response.model_dump()  # For pydantic models (like OpenAI's client library uses)
+            elif hasattr(response, 'to_dict'):
+                return response.to_dict()  # If the response has a to_dict method
+            else:
+                # Fallback to direct attribute access (less robust for nested objects)
+                serializable_dict = {}
+                for key in dir(response):
+                    if not key.startswith('_') and not callable(getattr(response, key)):
+                        value = getattr(response, key)
+                        # Attempt to serialize nested objects or convert to string
+                        if hasattr(value, 'model_dump'):
+                            serializable_dict[key] = value.model_dump()
+                        elif hasattr(value, 'to_dict'):
+                            serializable_dict[key] = value.to_dict()
+                        elif isinstance(value, (int, float, str, bool, type(None), list, dict)):
+                            serializable_dict[key] = value
+                        else:
+                            serializable_dict[key] = str(value)  # Convert other types to string
+                return serializable_dict
+        except Exception as e:
+            logger.warning(f"Failed to serialize OpenAI response object: {e}. Returning empty dict.", exc_info=True)
+            return {}  # Return empty dict to avoid crashing serialization
 
     # ------------- /v1/responses (single-shot) -----------------------------
     def _call_responses_api(
@@ -443,20 +681,24 @@ class OpenAIInterface(LLMInterface):
             if not text_response: logger.warning("/responses API call did not yield a parsable text response.")
             if not token_usage: logger.warning("/responses API call did not yield parsable token usage.")
 
-            return text_response, token_usage, resp
+            # Serialize raw response for JSON compatibility
+            raw_api_response_serialized = self._serialize_response(resp)
+            logger.debug(f"Serialized OpenAI Raw API Response: {raw_api_response_serialized}")
+
+            return text_response, token_usage, raw_api_response_serialized
 
         except Exception as e:
             logger.error("OpenAI /responses API error: %s", e, exc_info=True)
             return None, None, None
 
     # ---------------- public wrappers -------------------------------------
-    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs to handle extra params
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
         # Prefer chat completions even for single turns
         logger.debug("Using chat API for single-shot generate_action request.")
         messages = [{"role": "user", "content": prompt}]
-        return self._call_chat_api(messages, **kwargs)  # Pass kwargs
+        return self._call_chat_api(messages, **kwargs)
 
-    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
         # Convert Gemini format history (list of dicts with 'role', 'parts')
         # to OpenAI messages format (list of dicts with 'role', 'content').
         openai_messages: List[Dict[str, Any]] = []
@@ -483,7 +725,7 @@ class OpenAIInterface(LLMInterface):
                         text_content_parts.append(p["text"])
                     elif isinstance(p, dict) and "source" in p and "inline_data" in p.get("source", {}):
                         mime = p["source"]["inline_data"].get("mime_type", "unk")
-                        logger.debug(f"Ignoring image ({mime}) part in text conversational history conversion.")
+                        logger.debug(f"Ignoring image ({mime}) part in text conversational history conversion for OpenAI.")
                     else:
                         logger.warning(f"Skipping unsupported part type in history: {type(p)} / {p!r}")
                 content_value = "\n".join(text_content_parts).strip()
@@ -517,9 +759,9 @@ class OpenAIInterface(LLMInterface):
             return None, None, None
 
         logger.debug(f"Converted history to OpenAI messages format (length: {len(openai_messages)}).")
-        return self._call_chat_api(openai_messages, **kwargs)  # Pass kwargs
+        return self._call_chat_api(openai_messages, **kwargs)
 
-    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         # OpenAI multimodal uses a list of content objects (text or image_url)
         # within the 'content' field of a user message in chat completions.
         logger.debug(f"Attempting OpenAI multimodal generation with model {self.model} using chat completions.")
@@ -588,13 +830,13 @@ class OpenAIInterface(LLMInterface):
             logger.warning(f"Multimodal input 'contents' list contains {len(contents)} entries, but only the first entry is processed for OpenAI multimodal calls.")
 
         logger.debug(f"Calling OpenAI chat API for multimodal request (messages: {len(openai_messages)}).")
-        return self._call_chat_api(openai_messages, **kwargs)  # Pass kwargs
+        return self._call_chat_api(openai_messages, **kwargs)
 
-    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:
         # Use chat completion for evaluation consistency
         logger.debug("Using chat API for evaluation request.")
         messages = [{"role": "user", "content": prompt}]
-        return self._call_chat_api(messages, **kwargs)  # Pass kwargs
+        return self._call_chat_api(messages, **kwargs)
 
 # ---------------------------------------------------------------------------
 #  xAI Grok implementation
@@ -640,8 +882,8 @@ class GrokInterface(LLMInterface):
             else:
                 logger.debug("Calling Grok API without reasoning_effort (not supported) and additional kwargs: {kwargs}")
             resp = self.client.chat.completions.create(**kwargs)  # Pass all kwargs, including max_tokens if provided
-            # Store raw response
-            raw_api_response = resp
+            # Store raw response and serialize for JSON compatibility
+            raw_api_response = self._serialize_response(resp)  # Serialize to dict for saving
 
             # Extract text response safely
             choice_list = getattr(resp, 'choices', None)
@@ -686,12 +928,39 @@ class GrokInterface(LLMInterface):
             logger.error(f"Grok API error: {e}", exc_info=True)
             return None, None, None
 
+    def _serialize_response(self, response: Any) -> Dict:
+        """Serialize the API response to a dictionary for JSON compatibility."""
+        try:
+            # Attempt to use built-in serialization if available
+            if hasattr(response, 'model_dump'):
+                return response.model_dump()  # For pydantic models
+            elif hasattr(response, 'to_dict'):
+                return response.to_dict()  # If the response has a to_dict method
+            else:
+                # Fallback to direct attribute access (less robust for nested objects)
+                serializable_dict = {}
+                for key in dir(response):
+                    if not key.startswith('_') and not callable(getattr(response, key)):
+                        value = getattr(response, key)
+                        if hasattr(value, 'model_dump'):
+                            serializable_dict[key] = value.model_dump()
+                        elif hasattr(value, 'to_dict'):
+                            serializable_dict[key] = value.to_dict()
+                        elif isinstance(value, (int, float, str, bool, type(None), list, dict)):
+                            serializable_dict[key] = value
+                        else:
+                            serializable_dict[key] = str(value)  # Convert other types to string
+                return serializable_dict
+        except Exception as e:
+            logger.warning(f"Failed to serialize Grok response object: {e}. Returning empty dict for safety.", exc_info=True)
+            return {}  # Return empty dict to avoid crashing serialization
+
     # --- Implement abstract methods ---
-    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
         messages = [{"role": "user", "content": prompt}]
         return self._call_grok_chat_api(messages, **kwargs)
 
-    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
         # Convert Gemini format history to OpenAI messages format
         openai_messages: List[Dict[str, Any]] = []
         allowed_openai_roles = {"system", "user", "assistant"}
@@ -703,7 +972,7 @@ class GrokInterface(LLMInterface):
 
             openai_role = "assistant" if gemini_role == "model" else "user"
             if openai_role not in allowed_openai_roles:
-                logger.warning(f"Mapping unexpected Gemini role '{gemini_role}' to 'user'.")
+                logger.warning(f"Mapping unexpected Gemini role '{gemini_role}' to 'user' for Grok.")
                 openai_role = "user"
 
             content_value: Any = None
@@ -717,22 +986,22 @@ class GrokInterface(LLMInterface):
                         text_content_parts.append(p["text"])
                     elif isinstance(p, dict) and "source" in p and "inline_data" in p.get("source", {}):
                         mime = p["source"]["inline_data"].get("mime_type", "unk")
-                        logger.debug(f"Ignoring image ({mime}) part in text conversational history conversion.")
+                        logger.debug(f"Ignoring image ({mime}) part in text conversational history conversion for Grok.")
                     else:
-                        logger.warning(f"Skipping unsupported part type in history: {type(p)} / {p!r}")
+                        logger.warning(f"Skipping unsupported part type in history for Grok: {type(p)} / {p!r}")
                 content_value = "\n".join(text_content_parts).strip()
             elif isinstance(parts, str):
                 content_value = parts.strip()
             else:
-                logger.warning(f"History entry 'parts' has unexpected type {type(parts)}. Skipping entry.")
+                logger.warning(f"History entry 'parts' has unexpected type {type(parts)}. Skipping entry for Grok.")
                 continue
 
             if not content_value:
-                logger.debug(f"Skipping history entry from role '{gemini_role}' with empty content after processing parts.")
+                logger.debug(f"Skipping history entry from role '{gemini_role}' with empty content after processing parts for Grok.")
                 continue
 
             if openai_messages and last_openai_role == openai_role:
-                logger.warning(f"Consecutive messages with role '{openai_role}' detected. Appending content.")
+                logger.warning(f"Consecutive messages with role '{openai_role}' detected for Grok. Appending content.")
                 last_message = openai_messages[-1]
                 if isinstance(last_message.get('content'), str):
                     last_message['content'] += "\n" + content_value
@@ -748,13 +1017,13 @@ class GrokInterface(LLMInterface):
             return None, None, None
 
         logger.debug(f"Converted history to Grok messages format (length: {len(openai_messages)}).")
-        return self._call_grok_chat_api(openai_messages, **kwargs)  # Pass kwargs
+        return self._call_grok_chat_api(openai_messages, **kwargs)
 
-    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         logger.warning("Multimodal generation is not supported by xAI Grok models.")
         return None, None, None
 
-    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:
         messages = [{"role": "user", "content": prompt}]
         return self._call_grok_chat_api(messages, **kwargs)
 
@@ -773,7 +1042,7 @@ class QualityComputeInterface(LLMInterface):
     def _call_quality_compute_api(self, input_data: str or List[Dict], **kwargs) -> LLMResponse:
         """Internal helper to call Quality Compute API with immediate response logging"""
         import json  # Ensure json is imported locally
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -782,7 +1051,7 @@ class QualityComputeInterface(LLMInterface):
             "model": self.model_name,
             "input": input_data,
         }
-        
+
         for key, value in kwargs.items():
             if key not in ["model", "input"]:
                 payload[key] = value
@@ -790,10 +1059,10 @@ class QualityComputeInterface(LLMInterface):
         timeout_seconds = 300
         retries = 5
         base_delay = 30
-        
+
         for attempt in range(retries):
             try:
-                logger.debug(f"Calling Quality Compute API (Attempt {attempt+1}/{retries})")
+                logger.debug(f"Calling Quality Compute API (Attempt {attempt+1}/{retries}) with payload: {payload}")
                 start_time = time.time()
                 response = requests.post(
                     f"{self.base_url}/api/generate",
@@ -802,27 +1071,29 @@ class QualityComputeInterface(LLMInterface):
                     timeout=timeout_seconds
                 )
                 duration = time.time() - start_time
-                
+
                 # IMMEDIATE RESPONSE LOGGING
                 logger.error(f"QC API Response (Attempt {attempt+1}):")
                 logger.error(f"  Status: {response.status_code}")
                 logger.error(f"  Headers: {dict(response.headers)}")
                 logger.error(f"  Content (first 500 chars): {response.text[:500]}")
                 logger.error(f"  Duration: {duration:.2f}s")
-                
+
                 if response.status_code == 200:
                     try:
                         resp_json = response.json()
                         text_response = resp_json.get("selected_text")
                         usage_dict = resp_json.get("usage", {})
-                        
+
                         token_usage = {
                             "input_tokens": usage_dict.get("input_tokens", 0),
                             "output_tokens": usage_dict.get("output_tokens", 0),
                             "reasoning_tokens": usage_dict.get("reasoning_tokens", 0),
                             "total_tokens": usage_dict.get("total_tokens", 0),
                         }
-                        return text_response, token_usage, resp_json
+                        raw_api_response = resp_json  # Quality Compute response is already JSON, so store it directly
+                        logger.debug(f"QC API Raw Response: {raw_api_response}")
+                        return text_response, token_usage, raw_api_response
                     except json.JSONDecodeError:
                         logger.error("JSON decode failed - dumping full response")
                         logger.error(f"Full response: {response.text}")
@@ -830,7 +1101,7 @@ class QualityComputeInterface(LLMInterface):
                 else:
                     error_detail = response.text[:500]
                     logger.warning(f"Non-200 response: {error_detail}")
-                    
+
             except Exception as e:
                 logger.error(f"API call failed: {str(e)}")
                 if attempt < retries - 1:
@@ -839,7 +1110,7 @@ class QualityComputeInterface(LLMInterface):
                     time.sleep(sleep_time)
                 else:
                     return None, None, {"error": str(e)}
-        
+
         return None, None, None
 
     def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
@@ -853,7 +1124,7 @@ class QualityComputeInterface(LLMInterface):
         for entry in history:
             gemini_role = entry.get("role", "user")
             parts = entry.get("parts", [])
-            # Map Gemini roles to simulator/OpenAI roles
+
             openai_role = "assistant" if gemini_role == "model" else "user"
             if openai_role not in allowed_openai_roles:
                 logger.warning(f"Mapping unexpected Gemini role '{gemini_role}' to 'user' for QualityCompute.")
@@ -861,7 +1132,7 @@ class QualityComputeInterface(LLMInterface):
 
             content_value: Any = None
             if isinstance(parts, list):
-                text_content_parts: List[str] = []
+                text_content_parts = []
                 for p in parts:
                     if isinstance(p, str):
                         text_content_parts.append(p)
@@ -889,7 +1160,7 @@ class QualityComputeInterface(LLMInterface):
                 last_message = openai_messages[-1]
                 if isinstance(last_message.get('content'), str):
                     last_message['content'] += "\n" + content_value
-                else:  # Should not happen if content is always string, but safe fallback
+                else:
                      openai_messages.append({"role": openai_role, "content": content_value})
                      last_openai_role = openai_role
             else:
@@ -903,7 +1174,7 @@ class QualityComputeInterface(LLMInterface):
         # --- END CONVERSION LOGIC ---
 
         # Call the internal API helper with the converted messages list and pass kwargs
-        return self._call_quality_compute_api(openai_messages, **kwargs)  # Pass the converted list and additional kwargs
+        return self._call_quality_compute_api(openai_messages, **kwargs)
 
     def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         logger.warning("Multimodal generation is not supported by Quality Compute interface. Falling back to text-only.")
@@ -936,28 +1207,28 @@ class AnthropicInterface(LLMInterface):
             raise ValueError(f"Anthropic initialization failed: {e}") from e
 
     # --- Internal helper for chat API calls with retries ---
-    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: Optional[str] = None, **kwargs) -> LLMResponse:  # Added **kwargs
+    def _call_anthropic_api(self, messages: List[Dict[str, Any]], system_prompt: Optional[str] = None, **kwargs) -> LLMResponse:
         text_response: Optional[str] = None
         token_usage: TokenUsage = None
         resp: Optional["Message"] = None
-        
+
         retries = 3
         delay = 10  # seconds
-        
+
         for attempt in range(retries):
             try:
                 logger.debug(f"Calling Anthropic API with streaming (Attempt {attempt+1}/{retries}) and additional kwargs: {kwargs}")
-                
+
                 anthropic_kwargs = {
                     "model": self.model,
                     "max_tokens": 64000,  # Default max_tokens, can be overridden by kwargs
                     "messages": messages,
                 }
-                
+
                 # Add system prompt if provided
                 if system_prompt:
                     anthropic_kwargs["system"] = system_prompt
-                
+
                 # Add any additional kwargs (e.g., max_tokens, temperature)
                 for key, value in kwargs.items():
                     if key not in ["model", "messages", "system"]:  # Avoid overwriting core fields
@@ -968,7 +1239,7 @@ class AnthropicInterface(LLMInterface):
                     logger.debug(f"Extended thinking enabled with budget: {self.thinking_budget}")
                 else:
                     anthropic_kwargs["thinking"] = {"type": "disabled"}  # Explicitly disable if not enabled
-                
+
                 accumulated_text_parts: List[str] = []
                 with self.client.messages.stream(**anthropic_kwargs) as stream:
                     for event in stream:
@@ -978,12 +1249,11 @@ class AnthropicInterface(LLMInterface):
                             elif event.delta.type == "thinking_delta":
                                 # Skip thinking_delta as per instruction to exclude thoughts
                                 logger.debug("Skipping thinking_delta content as per configuration.")
-                        # Other event types (e.g., content_block_start, content_block_stop) are handled by the stream but not used for text accumulation
                 # After stream completes, get the final message for usage and other details
                 final_model_response_obj = stream.get_final_message()
-                
+
                 text_response = "".join(accumulated_text_parts).strip()
-                
+
                 # Extract token usage from the final message object
                 if final_model_response_obj and hasattr(final_model_response_obj, 'usage'):
                     usage_data = final_model_response_obj.usage
@@ -992,7 +1262,7 @@ class AnthropicInterface(LLMInterface):
                     total_tokens = None
                     if input_tokens is not None and output_tokens is not None:
                         total_tokens = input_tokens + output_tokens
-                    
+
                     token_usage = {
                         "input_tokens": input_tokens,
                         "output_tokens": output_tokens,
@@ -1001,23 +1271,27 @@ class AnthropicInterface(LLMInterface):
                     logger.debug(f"Anthropic API Token Usage (from stream): {token_usage}")
                 else:
                     logger.debug("No usage data found in Anthropic final_model_response_obj from stream.")
-                
+
+                # Serialize raw response for JSON compatibility
+                raw_api_response_serialized = self._serialize_response(final_model_response_obj)
+                logger.debug(f"Serialized Anthropic Raw API Response: {raw_api_response_serialized}")
+
                 # Log stop reason or other details if available
                 if final_model_response_obj:
                     stop_reason = getattr(final_model_response_obj, 'stop_reason', 'N/A')
                     logger.debug(f"Anthropic stream completed. Stop reason: {stop_reason}")
-                
-                return text_response, token_usage, final_model_response_obj
-                
+
+                return text_response, token_usage, raw_api_response_serialized
+
             except anthropic.APIConnectionError as e:
                 logger.warning(f"Anthropic API connection error (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
             except anthropic.RateLimitError as e:
                 logger.warning(f"Anthropic API rate limit error (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
-            except anthropic.APIStatusError as e: 
+            except anthropic.APIStatusError as e:
                 logger.warning(f"Anthropic API status error {e.status_code} (Attempt {attempt+1}/{retries}): {e.message}", exc_info=True)
-            except Exception as e: 
+            except Exception as e:
                 logger.warning(f"Anthropic API general error during streaming/processing (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
-            
+
             # If an exception occurred and it's not the last attempt, sleep and retry
             if attempt < retries - 1:
                 actual_delay = delay * (attempt + 1)
@@ -1026,20 +1300,47 @@ class AnthropicInterface(LLMInterface):
             else:
                 logger.error(f"Anthropic API failed after {retries} attempts")
                 return None, None, None
-            
+
         return None, None, None  # Fallback if all retries fail
+
+    def _serialize_response(self, response: Any) -> Dict:
+        """Serialize the API response to a dictionary for JSON compatibility."""
+        try:
+            # Attempt to use built-in serialization
+            if hasattr(response, 'model_dump'):
+                return response.model_dump()
+            elif hasattr(response, 'to_dict'):
+                return response.to_dict()
+            else:
+                # Fallback to direct attribute access (less robust for nested objects)
+                serializable_dict = {}
+                for key in dir(response):
+                    if not key.startswith('_') and not callable(getattr(response, key)):
+                        value = getattr(response, key)
+                        if hasattr(value, 'model_dump'):
+                            serializable_dict[key] = value.model_dump()
+                        elif hasattr(value, 'to_dict'):
+                            serializable_dict[key] = value.to_dict()
+                        elif isinstance(value, (int, float, str, bool, type(None), list, dict)):
+                            serializable_dict[key] = value
+                        else:
+                            serializable_dict[key] = str(value)  # Convert other types to string
+                return serializable_dict
+        except Exception as e:
+            logger.warning(f"Failed to serialize Anthropic response object: {e}. Returning empty dict.", exc_info=True)
+            return {}  # Return empty dict to avoid crashing serialization
 
     # --- Convert Gemini format to Anthropic format ---
     def _convert_to_anthropic_messages(self, history: List[Dict]) -> List[Dict[str, Any]]:
         anthropic_messages = []
-        
+
         for entry in history:
             gemini_role = entry.get("role", "user")
             parts = entry.get("parts", [])
-            
+
             # Map Gemini roles to Anthropic roles
             anthropic_role = "assistant" if gemini_role == "model" else "user"
-            
+
             content_value = None
             if isinstance(parts, list):
                 text_content_parts = []
@@ -1053,44 +1354,43 @@ class AnthropicInterface(LLMInterface):
                 content_value = "\n".join(text_content_parts).strip()
             elif isinstance(parts, str):
                 content_value = parts.strip()
-            
+
             if content_value:
                 anthropic_messages.append({"role": anthropic_role, "content": content_value})
-        
+
         if not anthropic_messages:
             logger.error("No valid messages derived from history for Anthropic")
             return []
-        
         return anthropic_messages
 
     # --- Implement abstract methods ---
-    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
         anthropic_messages = [{"role": "user", "content": prompt}]
         return self._call_anthropic_api(anthropic_messages, **kwargs)
 
-    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
         anthropic_messages = self._convert_to_anthropic_messages(history)
         if not anthropic_messages:
             return None, None, None
-        
+
         logger.debug(f"Converted history to Anthropic messages format (length: {len(anthropic_messages)})")
         return self._call_anthropic_api(anthropic_messages, **kwargs)
 
-    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:  # Added **kwargs
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         logger.warning("Multimodal support for Anthropic is not fully implemented yet. Converting to text-only.")
-        
+
         messages = []
         if not contents or not isinstance(contents, list):
             logger.error("Invalid format for multimodal contents input")
             return None, None, None
-        
+
         # Extract text from first content entry
         first_entry = contents[0]
         entry_role = first_entry.get("role", "user")
         parts = first_entry.get("parts", [])
-        
+
         anthropic_role = "assistant" if entry_role == "model" else "user"
-        
+
         text_content = ""
         for part in parts:
             if isinstance(part, str):
@@ -1100,7 +1400,7 @@ class AnthropicInterface(LLMInterface):
             elif isinstance(part, dict) and "source" in part:
                 # Image parts are not supported in this basic implementation
                 logger.warning("Skipping image part in multimodal content for Anthropic")
-        
+
         if text_content:
             messages.append({"role": anthropic_role, "content": text_content.strip()})
             return self._call_anthropic_api(messages, **kwargs)
@@ -1108,6 +1408,6 @@ class AnthropicInterface(LLMInterface):
             logger.error("No valid text content found in multimodal input")
             return None, None, None
 
-    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:  # Added **kwargs
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:
         messages = [{"role": "user", "content": prompt}]
         return self._call_anthropic_api(messages, **kwargs)

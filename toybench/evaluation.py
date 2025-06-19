@@ -33,10 +33,15 @@ class Evaluator:
         # Stores status from previous turn for regression check {attempt_id: status}
         self.previous_statuses = {} # Currently unused for solar_gen
 
-    def evaluate_final_outcome(self, final_eval_input: str) -> tuple[int, str]:
+    def evaluate_final_outcome(self, final_eval_input: str, **kwargs) -> tuple[int, str]:
         """
         Uses the Evaluator LLM to score the final outcome based on text input and the task prompt.
         (Not used for solar_gen final evaluation).
+
+        Args:
+            final_eval_input (str): The final outcome text to be evaluated.
+            **kwargs: Additional arguments to pass to the LLM call (e.g., max_tokens).
+
         Returns score (1, 2, or 3) and raw response text.
         Returns score 1 on failure to parse or LLM error.
         """
@@ -56,9 +61,11 @@ class Evaluator:
         logger.info("Requesting final text evaluation from LLM.")
         logger.debug(f"Final Text Evaluation Prompt (truncated): {prompt[:500]}")
 
-        # Use the standard text generation method of the LLM interface
-        # Assuming evaluate_outcome uses a text-based generation method
-        response_text = self.llm.evaluate_outcome(prompt) # evaluate_outcome might just call generate_action internally
+        # --- CORRECTED LLM CALL ---
+        # Correctly unpack the response tuple and pass along any extra arguments like max_tokens.
+        response_text, _, _ = self.llm.evaluate_outcome(prompt, **kwargs)
+        # --- END CORRECTION ---
+
         if response_text is None:
             logger.error("Failed to get response from evaluator LLM for text evaluation.")
             return 1, "Evaluator LLM failed to respond." # Fail score
@@ -74,12 +81,15 @@ class Evaluator:
         return score, response_text
 
     # --- Method for Multimodal Image Evaluation (Used by solar_gen) ---
-    def evaluate_final_image_outcome(self, image_path: str) -> tuple[int, str]:
+    def evaluate_final_image_outcome(self, image_path: str, **kwargs) -> tuple[int, str]:
         """
         Uses the Evaluator LLM (multimodal capable) to score the final outcome based
         on an image input and the task prompt template.
+
         Args:
             image_path (str): Path to the final image file (e.g., screenshot).
+            **kwargs: Additional arguments to pass to the LLM call (e.g., max_tokens).
+
         Returns:
             tuple[int, str]: (score (1, 2, or 3), raw_response_text).
                             Returns score 1 on failure (file missing, encode error, LLM error, parse error).
@@ -119,16 +129,13 @@ class Evaluator:
                 ]
             }
         ]
-
-        # --- CORRECTED DEBUG LINE ---
+        
         try:
-            # Safely access nested keys for logging
             mime_type_log = multimodal_payload[0]['parts'][0].get('inline_data', {}).get('mime_type', 'N/A')
             text_log = multimodal_payload[0]['parts'][1].get('text', '')[:100]
             logger.debug(f"Multimodal Payload Structure (Image data truncated):\nMimeType={mime_type_log}..., Text: {text_log}...")
         except (IndexError, KeyError, AttributeError) as log_e:
             logger.warning(f"Could not log multimodal payload structure details: {log_e}")
-        # --- END CORRECTION ---
 
         # 4. Call the LLM using a multimodal method
         # Ensure the LLM interface instance supports multimodal calls
@@ -139,7 +146,10 @@ class Evaluator:
         response_text = None
         try:
             logger.info("Sending request to multimodal evaluator LLM.")
-            response_text, _, _ = self.llm.generate_content_multimodal(multimodal_payload)  # Unpack the tuple returned by generate_content_multimodal
+            # --- CORRECTED LLM CALL ---
+            # Pass along any extra arguments like max_tokens.
+            response_text, _, _ = self.llm.generate_content_multimodal(multimodal_payload, **kwargs)
+            # --- END CORRECTION ---
         except Exception as e:
             logger.error(f"Error during multimodal LLM call: {e}", exc_info=True)
             return 1, f"Multimodal LLM call failed: {e}"  # LLM call failure -> Score 1
@@ -148,7 +158,6 @@ class Evaluator:
             logger.error("Failed to get response from multimodal evaluator LLM.")
             return 1, "Multimodal Evaluator LLM failed to respond."  # Fail score if no response
 
-        # Add type check for response_text before parsing
         if not isinstance(response_text, str):
             logger.error(f"Response text is not a string (type: {type(response_text)}), cannot parse score. Raw response: {response_text}")
             return 1, f"Invalid response type from LLM: {type(response_text)}"
@@ -164,7 +173,6 @@ class Evaluator:
 
         logger.info(f"Parsed final multimodal score: {score}")
         return score, response_text
-
     # --- END METHOD ---
 
     # Regression tracking is not currently used by SolarSystemEnv
