@@ -14,6 +14,7 @@ class FileSystemEnv(BaseEnvironment):
     copying/deleting, nested dirs, and precise state management.
     Evaluation is deterministic.
     """
+
     def __init__(self, goal_description: str):
         self._goal = goal_description
         self.fs = {} # {absolute_path: content_string_or_directory_dict}
@@ -54,22 +55,30 @@ class FileSystemEnv(BaseEnvironment):
                  self.fs[path] = {} # Ensure fresh dict for directories
              else:
                  self.fs[path] = content # Copy file content
-
         self.cwd = '/project/src' # Start in a nested directory
         logger.info(f"EXTREME Complex File System Environment Reset. Agent starts in: {self.cwd}")
+
         # Agent needs to figure out state via commands
         return f"You are currently in the '{self.cwd}' directory. Use commands like 'ls', 'pwd', 'cd' to navigate and explore."
 
     # --- Path and State Helpers (mostly unchanged) ---
     def _render_ls_output(self, path: str) -> str:
         normalized_path = self._normalize_path(path)
-        if normalized_path not in self.fs or not isinstance(self.fs[normalized_path], dict):
+
+        # First, check if the path exists at all.
+        if normalized_path not in self.fs:
             return f"Error: ls: cannot access '{path}': No such file or directory"
+
+        # Next, check if it's a file (not a directory) to mimic real 'ls' behavior.
+        if not isinstance(self.fs[normalized_path], dict):
+            # Real-world `ls` on a file prints the path back.
+            return path
+
+        # If we get here, it's a directory. Proceed with listing contents.
         items = []
         prefix = normalized_path.rstrip('/') + '/'
         # Handle root edge case for prefix
         if normalized_path == '/': prefix = '/'
-
         for p, content in self.fs.items():
              # Check if path p is *directly* inside the directory 'prefix'
              if p.startswith(prefix) and p != normalized_path:
@@ -96,7 +105,6 @@ class FileSystemEnv(BaseEnvironment):
              # Avoid normalizing the content part of an echo command if passed accidentally
              # This is a heuristic, assumes 'path' is only the target file for non-echo cases
              pass
-
         # Join with CWD if path is relative, otherwise use the absolute path
         abs_path = posixpath.join(self.cwd, path) if not posixpath.isabs(path) else path
         # Normalize the path (handles '..', '.', '//')
@@ -110,14 +118,12 @@ class FileSystemEnv(BaseEnvironment):
              if normalized == '.': return self.cwd
              logger.warning(f"Path normalization resulted in non-absolute path '{normalized}' from input '{path}' in cwd '{self.cwd}'. Defaulting to CWD.")
              return self.cwd # Fallback or error? Fallback for now.
-
         return normalized if normalized else '/'
 
     # --- Interface Methods Implementation (getters unchanged) ---
     def get_agent_player_mark(self) -> str | None: return None
     def get_state(self) -> str: return self._get_state_string()
     def get_goal(self) -> str: return self._goal
-
     def get_prompt_context(self) -> dict:
         """Returns the context dictionary needed for prompt formatting."""
         # Removed 'mv', added 'cat', 'cp', 'echo'
@@ -132,27 +138,21 @@ class FileSystemEnv(BaseEnvironment):
         """Basic syntax validation for known commands."""
         action = action.strip()
         if not action: logger.debug("Validation failed: Empty action."); return False
-
         parts = action.split(maxsplit=1)
         command = parts[0].lower()
         args_part = parts[1] if len(parts) > 1 else ""
-
         # Note: 'echo' validation is tricky due to content. We'll do basic checks here.
         known_commands = ["ls", "cd", "pwd", "mkdir", "cat", "cp", "rm", "echo"]
-
         if command not in known_commands:
             logger.debug(f"Validation failed: Unknown command '{command}'.")
             return False
-
         # Commands requiring >= 1 argument (path/target)
         if command in ["cd", "mkdir", "cat", "rm"] and not args_part:
              logger.debug(f"Validation failed: Cmd '{command}' needs argument(s)."); return False
-
         # Command requiring >= 2 arguments (source + destination)
         if command == "cp":
              if not args_part or len(args_part.split()) < 2:
                  logger.debug(f"Validation failed: Cmd 'cp' needs source and destination args."); return False
-
         # Basic 'echo' validation: needs content and redirection operator + target file
         if command == "echo":
              # Look for redirection operator (must be surrounded by spaces for simple split, or handle quotes)
@@ -163,16 +163,13 @@ class FileSystemEnv(BaseEnvironment):
              redirect_match = re.search(r"(>>?)\s*(.*)", args_part)
              if not redirect_match or not redirect_match.group(2):
                  logger.debug(f"Validation failed: Cmd 'echo' missing target file after redirection."); return False
-
         # 'ls' and 'pwd' can optionally take args or no args.
         return True
-
 
     def step(self, action: str) -> str:
         """Executes the action command and returns a result string (output or error)."""
         action = action.strip()
         logger.debug(f"Executing FS action: CWD='{self.cwd}', Action='{action}'")
-
         try:
             # === Command Parsing === (More complex due to echo)
             parts = action.split(maxsplit=1)
@@ -224,7 +221,6 @@ class FileSystemEnv(BaseEnvironment):
                 if len(cp_parts) < 2: return "Error: cp: missing destination file operand after source"
                 source_str = cp_parts[0]
                 dest_str = cp_parts[-1] # Assume last is destination
-
                 source_path = self._normalize_path(source_str)
                 dest_path_raw = self._normalize_path(dest_str)
 
@@ -289,11 +285,8 @@ class FileSystemEnv(BaseEnvironment):
                     content_to_write = content_group1 or content_group2 or content_group3 # Get captured content
                     content_to_write = content_to_write.strip() if content_to_write else ""
 
-
                 target_path_str = target_str.strip()
-
                 if not target_path_str: return "Error: echo: Missing target file operand."
-
                 target_path = self._normalize_path(target_path_str)
                 parent_path = posixpath.dirname(target_path)
 
@@ -319,7 +312,6 @@ class FileSystemEnv(BaseEnvironment):
                     self.fs[target_path] = existing_content + separator + content_to_write + "\n" # Add newline like shell echo
                     logger.info(f"Appended to file: {target_path}")
                 return "Success."
-
             else: return f"Error: Unknown command: {command}"
         except Exception as e:
             logger.error(f"Unexpected error during FS step for action '{action}': {e}", exc_info=True)
@@ -425,7 +417,6 @@ class FileSystemEnv(BaseEnvironment):
 
         # --- Start Checking ---
         all_ok = True
-
         # Check Dirs
         for d in expected_dirs:
             if not (d in self.fs and isinstance(self.fs[d], dict)):
@@ -505,6 +496,5 @@ class FileSystemEnv(BaseEnvironment):
             else:
                  logger.info(f"Evaluation: Fail (Fundamental structure incorrect or critical errors: {'; '.join(issues)})")
                  score = 1
-
         return score
 # --- END NEW ULTRA COMPLEX Deterministic Evaluation Method ---

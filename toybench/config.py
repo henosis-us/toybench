@@ -26,6 +26,13 @@ def load_config():
         'quality_compute_api_key': os.getenv('QC_API_KEY'),  # API key for Quality Compute simulator
         'QUALITY_COMPUTE_URL': os.getenv('QUALITY_COMPUTE_URL'),  # URL for Quality Compute simulator
         
+        # Kimi (Moonshot AI)
+        'kimi_api_key':        os.getenv('KIMI_API_KEY2'),  # Added for Kimi suppor
+        
+        # OpenRouter (added per integration plan)
+        'openrouter_api_key':  os.getenv('OPENROUTER_API_KEY'),  # API key for OpenRouter
+        'default_openrouter_model': 'openai/gpt-oss-120b',      # Default model for OpenRouter provider
+        
         # Default models
         'default_gemini_model': 'gemini-2.0-flash',
         'default_openai_model': 'o4-mini',
@@ -46,11 +53,15 @@ def load_config():
         logger.warning("OPENAI_API_KEY environment variable not set.")
     if not config['xai_api_key']:
         logger.warning("XAI_API_KEY environment variable not set.")
-    if not config['anthropic_api_key']:  # New warning for Anthropic API key
+    if not config['anthropic_api_key']:
         logger.warning("ANTHROPIC_API_KEY environment variable not set.")
     if not config['quality_compute_api_key']:
         logger.warning("QC_API_KEY environment variable not set.")
     if not config['QUALITY_COMPUTE_URL']:
         logger.warning("QUALITY_COMPUTE_URL environment variable not set.")
+    if not config['kimi_api_key']:
+        logger.warning("KIMI_API_KEY environment variable not set.")  # Added warning for Kimi
+    if not config['openrouter_api_key']:  # Added warning for OpenRouter
+        logger.warning("OPENROUTER_API_KEY environment variable not set.")
     
     return config
