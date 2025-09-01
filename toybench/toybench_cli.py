@@ -38,6 +38,7 @@ from reporting import calculate_metrics, format_report, save_results
 from environments.file_system_env import FileSystemEnv
 from environments.tic_tac_toe_env import TicTacToeEnv
 from environments.solar_system_env import SolarSystemEnv
+from environments.sokoban_env import SokobanEnv
 
 # Configure logging early
 logger = logging.getLogger(__name__)
@@ -95,7 +96,8 @@ def get_environment(task_name: str,
                     prompts: dict,
                     evaluator_llm: LLMInterface | None,  # Intermediate evaluator for Solar
                     output_dir: str,
-                    max_rounds: int) -> BaseEnvironment:
+                    max_rounds: int,
+                    sokoban_level: int | None = None) -> BaseEnvironment:
     """Factory function to instantiate the correct environment."""
     logger.info(f"Creating environment for task: {task_name}")
     if task_name == "file_system":
@@ -125,6 +127,9 @@ def get_environment(task_name: str,
         except Exception as e:
             logger.error(f"Unexpected error initializing SolarSystemEnv: {e}", exc_info=True)
             raise
+    elif task_name == "sokoban":
+        # Deterministic puzzle; no evaluator_llm required. Pass output_dir for artifact saving.
+        return SokobanEnv(goal_description=goal, max_steps=max_rounds, output_dir_base=output_dir, level_index=(sokoban_level or 0))
     else:
         raise ValueError(f"Unknown task name: {task_name}")
 
@@ -197,7 +202,11 @@ def parse_agent_response(response_text: str, task_name: str) -> tuple[str | None
             logger.debug("Parsed signal (TASK_COMPLETE line).")
             return None, True
         
-        common_cmds = ["ls", "cd", "mkdir", "touch", "rm", "pwd", "mv", "place", "cat", "cp", "echo"]
+        common_cmds = [
+            "ls", "cd", "mkdir", "touch", "rm", "pwd", "mv", "place", "cat", "cp", "echo",
+            # Sokoban movement fallbacks (if agent forgets code fence)
+            "up", "down", "left", "right", "move", "reset"
+        ]
         first_word = first_line.split(maxsplit=1)[0].lower() if first_line else ""
         if first_word in common_cmds:
             logger.debug(f"Parsed command (first line heuristic): '{first_line}'")
@@ -240,6 +249,7 @@ def run_attempt(attempt_id: int,
     is_ttt = isinstance(env, TicTacToeEnv)
     is_fs = isinstance(env, FileSystemEnv)
     is_solar = isinstance(env, SolarSystemEnv)
+    is_sokoban = isinstance(env, SokobanEnv)
 
     if is_ttt:
         logger.info(f"Task '{task_name}' runs until game completion or error. --rounds ({max_rounds}) ignored.")
@@ -250,11 +260,14 @@ def run_attempt(attempt_id: int,
     elif is_solar:
         logger.info(f"Task '{task_name}' runs for exactly {max_rounds} refinement rounds (steps).")
         effective_max_rounds = max_rounds
+    elif is_sokoban:
+        logger.info(f"Task '{task_name}' runs until puzzle solved or max_rounds. --rounds ({max_rounds}) is the move budget.")
+        effective_max_rounds = max_rounds
     else:
         logger.info(f"Task '{task_name}' runs for max {max_rounds} steps or until completion signal/error.")
         effective_max_rounds = max_rounds
 
-    use_conversational_api = is_fs or is_solar
+    use_conversational_api = is_fs or is_solar or is_sokoban
     if use_conversational_api:
         logger.info(f"Using conversational API path for agent in task '{task_name}'.")
     else:
@@ -621,6 +634,17 @@ def run_attempt(attempt_id: int,
                     final_score = 1
                     final_eval_response = "Fail (Environment evaluation method missing)"
 
+            elif is_sokoban:
+                if hasattr(env, 'evaluate_final_state'):
+                    final_score = env.evaluate_final_state()
+                    score_map = {3: "Success", 2: "Partial", 1: "Fail"}
+                    final_eval_response = f"{score_map.get(final_score, 'Unknown')} (Sokoban Deterministic Eval)"
+                    logger.info(f"Deterministic Sokoban Score: {final_score} ({final_eval_response})")
+                else:
+                    logger.error("SokobanEnv missing 'evaluate_final_state' method for deterministic eval.")
+                    final_score = 1
+                    final_eval_response = "Fail (Environment evaluation method missing)"
+
             elif is_solar:
                 template = prompts.get('finaleval_template')
                 if not template:
@@ -739,6 +763,10 @@ def main():
     parser.add_argument("--max_tokens", type=int, default=None, help="Max tokens for LLM responses (passed to agent and evaluator if supported).")
     parser.add_argument("--output_dir", default="results",
                         help="Base directory for saving results")
+    # --- Sokoban-specific ---
+    sokoban_group = parser.add_argument_group('Sokoban Options')
+    sokoban_group.add_argument("--sokoban_level", type=int, default=0,
+                               help="Sokoban level index (0-based). Level 0 is the bundled non-trivial base level; higher indexes are harder.")
     # --- Provider-Specific Argument Groups ---
     openai_group = parser.add_argument_group('OpenAI Options')
     openai_group.add_argument("--openai_reasoning_effort", default="high", choices=["auto", "low", "medium", "high"],
@@ -951,7 +979,8 @@ def main():
                 prompts=prompts,
                 evaluator_llm=final_evaluator_llm,
                 output_dir=attempt_output_dir,
-                max_rounds=args.rounds
+                max_rounds=args.rounds,
+                sokoban_level=args.sokoban_level
             )
             logger.info(f"Environment instance ({type(environment).__name__}) created for attempt {i+1}.")
 

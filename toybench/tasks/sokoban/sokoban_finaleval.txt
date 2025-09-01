@@ -1,0 +1,13 @@
+This template documents the Sokoban scoring rubric. The environment uses deterministic evaluation and does not call this prompt.
+
+Final State:
+{final_outcome}
+
+Score using the following rubric:
+- 3 (Success): Every goal tile contains a box (all goals satisfied).
+- 2 (Partial): At least one box is correctly placed on a goal, but not all goals are satisfied.
+- 1 (Fail): No goals are satisfied or the state is clearly deadlocked with no progress.
+
+Output only the rating tag:
+<rating>X</rating>
+

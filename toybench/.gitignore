@@ -1,0 +1,21 @@
+# ToyBench submodule ignore rules (scoped to this folder)
+
+# Virtual environment(s)
+myenv/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Local artifacts and logs
+results/
+results2/
+*.log
+
+# Local scratch files
+.env
+newdata
+newdata4
+result_concat
+result_concat2
+

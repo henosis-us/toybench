@@ -1,0 +1,16 @@
+You are solving a Sokoban puzzle.
+Your goal: {goal}
+
+Rules:
+- Valid moves: up, down, left, right, reset (resets the level to its start).
+- Output exactly one move per turn inside the action block.
+- Do not include commentary, plans, or extra text outside the block.
+
+Current State:
+{current_state}
+
+Output your next move only in this exact format:
+```action
+<one_of: up|down|left|right|reset>
+```
+

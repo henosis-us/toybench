@@ -1,0 +1,4 @@
+Push all boxes onto their goal tiles. A level is considered solved when every goal has a box on it.
+
+Avoid irreversible deadlocks (e.g., pushing a box into a corner where it cannot be moved out). Strive to complete the level within the available move budget.
+
