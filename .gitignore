@@ -1,1 +1,17 @@
 .env
+
+# Generated logs and results (do not track)
+logs/
+results/
+toybench/results/
+toybench/logs/
+
+# Common artifact files
+*.jsonl
+*.log
+*.bak
+prompt_cache.txt
+
+# Python and OS cruft
+__pycache__/
+.DS_Store

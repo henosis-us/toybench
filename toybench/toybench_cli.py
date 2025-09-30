@@ -29,7 +29,7 @@ from config import load_config
 from utils import setup_logging, create_output_dir, parse_llm_score
 
 # Import Interfaces and Base Classes
-from llm_interface import LLMInterface, GeminiInterface, OpenAIInterface, GrokInterface, QualityComputeInterface, AnthropicInterface, KimiInterface, OpenRouterInterface
+from llm_interface import LLMInterface, GeminiInterface, OpenAIInterface, GrokInterface, QualityComputeInterface, AnthropicInterface, KimiInterface, OpenRouterInterface, DeepSeekInterface
 from environments.base_env import BaseEnvironment
 from evaluation import Evaluator
 from reporting import calculate_metrics, format_report, save_results
@@ -142,7 +142,7 @@ def get_llm_interface(provider_name: str, api_key: str, model_name: str, thinkin
                                thinking_enabled=thinking_enabled, thinking_budget=thinking_budget)
     elif p == "openai":
         return OpenAIInterface(api_key=api_key, model_name=model_name, provider_name="openai",
-                               reasoning_effort=kwargs.get('openai_reasoning_effort', 'high'),
+                               reasoning_effort=kwargs.get('openai_reasoning_effort', 'medium'),
                                background_enabled=kwargs.get('openai_background', False),
                                background_poll_interval=kwargs.get('openai_bg_poll', 2.0))
     elif p == "grok":
@@ -150,7 +150,22 @@ def get_llm_interface(provider_name: str, api_key: str, model_name: str, thinkin
     elif p == "quality_compute":
         return QualityComputeInterface(api_key=api_key, model_name=model_name, provider_name="quality_compute", **kwargs)
     elif p == "anthropic":
-        return AnthropicInterface(api_key=api_key, model_name=model_name, provider_name="anthropic", thinking_enabled=thinking_enabled, thinking_budget=thinking_budget)
+        # Do NOT enable extended thinking by default for Anthropic models.
+        # Only include thinking parameters if explicitly requested by the CLI (args.thinking).
+        anthropic_kwargs = dict(
+            api_key=api_key,
+            model_name=model_name,
+            provider_name="anthropic",
+            use_prompt_caching=True,
+            cache_ttl="5m",               # default ephemeral cache window
+            add_prompt_caching_header=False,
+            enable_context_1m_beta=True,   # optional beta header; safe to keep enabled
+        )
+        if thinking_enabled:
+            anthropic_kwargs["thinking_enabled"] = True
+            if thinking_budget is not None:
+                anthropic_kwargs["thinking_budget"] = thinking_budget
+        return AnthropicInterface(**anthropic_kwargs)
     elif p == "kimi":
         return KimiInterface(api_key=api_key, model_name=model_name, provider_name="kimi")
     elif p == "openrouter":
@@ -159,6 +174,8 @@ def get_llm_interface(provider_name: str, api_key: str, model_name: str, thinkin
                                    sort=kwargs.get('or_sort', 'price'),
                                    reasoning_effort=kwargs.get('or_reasoning_effort', 'low'),
                                    provider=kwargs.get('or_provider'))
+    elif p == "deepseek":
+        return DeepSeekInterface(api_key=api_key, model_name=model_name, provider_name="deepseek")
     else:
         raise ValueError(f"Unsupported LLM provider: {provider_name}")
 
@@ -358,6 +375,42 @@ def run_attempt(attempt_id: int,
                     raise ValueError("Cannot generate action with empty conversational history.")
                 logger.debug(f"Calling conversational agent ({agent.model_name}) for {task_name}. History length: {len(conversation_history)}")
                 agent_response_text, token_usage_this_turn, raw_api_response_this_turn = agent.generate_action_conversational(conversation_history, max_tokens=max_tokens)
+                # Generic usage log: enumerate all keys dynamically so new fields (e.g., thinking) are shown
+                try:
+                    if isinstance(token_usage_this_turn, dict):
+                        ordered_keys = list(token_usage_this_turn.keys())
+                        usage_str = " ".join(f"{k}={token_usage_this_turn[k]}" for k in ordered_keys)
+                        logger.info("Token usage (turn %d): %s", current_turn_number, usage_str)
+                except Exception:
+                    pass
+                # If Anthropic, log per-turn usage details and whether thinking was enabled
+                try:
+                    from llm_interface import AnthropicInterface as _AI
+                    if isinstance(agent, _AI):
+                        logger.info(
+                            "Anthropic usage (turn %d): %s",
+                            current_turn_number,
+                            json.dumps(token_usage_this_turn or {}, ensure_ascii=False)
+                        )
+                        logger.info(
+                            "Anthropic thinking: %s (budget=%s)",
+                            getattr(agent, 'thinking_enabled', False),
+                            getattr(agent, 'thinking_budget', None)
+                        )
+                        # Inspect content blocks for thinking/redacted_thinking presence
+                        if isinstance(raw_api_response_this_turn, dict):
+                            _content = raw_api_response_this_turn.get('content') or []
+                            if isinstance(_content, list):
+                                _thinking = sum(1 for b in _content if isinstance(b, dict) and b.get('type') == 'thinking')
+                                _redacted = sum(1 for b in _content if isinstance(b, dict) and b.get('type') == 'redacted_thinking')
+                                _text = sum(1 for b in _content if isinstance(b, dict) and b.get('type') == 'text')
+                                logger.info(
+                                    "Anthropic content blocks this turn: thinking=%d redacted_thinking=%d text=%d",
+                                    _thinking, _redacted, _text
+                                )
+                except Exception:
+                    # Do not fail the run for logging issues
+                    pass
             else:
                 current_context = prompt_context_before_action
                 template = prompts['generate_template']
@@ -372,6 +425,42 @@ def run_attempt(attempt_id: int,
                 generation_prompt = template.format(**current_context)
                 logger.debug(f"Agent Prompt (Turn {current_turn_number}, Task: {task_name}, Non-Conversational).")
                 agent_response_text, token_usage_this_turn, raw_api_response_this_turn = agent.generate_action(generation_prompt, max_tokens=max_tokens)
+                # Generic usage log: enumerate all keys dynamically so new fields (e.g., thinking) are shown
+                try:
+                    if isinstance(token_usage_this_turn, dict):
+                        ordered_keys = list(token_usage_this_turn.keys())
+                        usage_str = " ".join(f"{k}={token_usage_this_turn[k]}" for k in ordered_keys)
+                        logger.info("Token usage (turn %d): %s", current_turn_number, usage_str)
+                except Exception:
+                    pass
+                # If Anthropic, log per-turn usage details and whether thinking was enabled
+                try:
+                    from llm_interface import AnthropicInterface as _AI
+                    if isinstance(agent, _AI):
+                        logger.info(
+                            "Anthropic usage (turn %d): %s",
+                            current_turn_number,
+                            json.dumps(token_usage_this_turn or {}, ensure_ascii=False)
+                        )
+                        logger.info(
+                            "Anthropic thinking: %s (budget=%s)",
+                            getattr(agent, 'thinking_enabled', False),
+                            getattr(agent, 'thinking_budget', None)
+                        )
+                        # Inspect content blocks for thinking/redacted_thinking presence
+                        if isinstance(raw_api_response_this_turn, dict):
+                            _content = raw_api_response_this_turn.get('content') or []
+                            if isinstance(_content, list):
+                                _thinking = sum(1 for b in _content if isinstance(b, dict) and b.get('type') == 'thinking')
+                                _redacted = sum(1 for b in _content if isinstance(b, dict) and b.get('type') == 'redacted_thinking')
+                                _text = sum(1 for b in _content if isinstance(b, dict) and b.get('type') == 'text')
+                                logger.info(
+                                    "Anthropic content blocks this turn: thinking=%d redacted_thinking=%d text=%d",
+                                    _thinking, _redacted, _text
+                                )
+                except Exception:
+                    # Do not fail the run for logging issues
+                    pass
         except Exception as e:
             logger.error(f"Agent generation failed during turn {current_turn_number}: {e}", exc_info=True)
             step_error_this_turn = f"Agent generation API error: {e}"
@@ -735,6 +824,8 @@ def infer_provider_from_model(model_name: str) -> str | None:
         return "anthropic"
     elif name_lower.startswith('moonshot-'):
         return "kimi"
+    elif name_lower.startswith('deepseek-'):
+        return "deepseek"
     logger.debug(f"Could not infer provider from model name: {model_name}")
     return None
 
@@ -747,7 +838,7 @@ def main():
     parser.add_argument("-t", "--task", required=True,
                         help="Task name (e.g., file_system, tic_tac_toe, solar_gen)")
     parser.add_argument("-p", "--provider", default="gemini",
-                         choices=["gemini", "openai", "grok", "quality_compute", "anthropic", "kimi", "openrouter"],
+                         choices=["gemini", "openai", "grok", "quality_compute", "anthropic", "kimi", "openrouter", "deepseek"],
                         help="LLM Provider for the AGENT")
     parser.add_argument("-m", "--model", default=None,
                         help="Agent LLM model name. For QualityCompute, this is the base model for Best-of-N, or ignored if collaborative.")
@@ -756,7 +847,7 @@ def main():
     parser.add_argument("-r", "--rounds", type=int, default=35,
                         help="Max rounds/steps per attempt")
     parser.add_argument("--evaluator_model", default=None,
-                        help="Evaluator LLM model name. Defaults to config default (gemini-1.5-flash). Provider inferred.")
+                        help="Evaluator LLM model name. Defaults to config default (gemini-2.5-flash-lite). Provider inferred.")
     parser.add_argument("--log_level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
                         help="Logging level")
@@ -767,6 +858,8 @@ def main():
     sokoban_group = parser.add_argument_group('Sokoban Options')
     sokoban_group.add_argument("--sokoban_level", type=int, default=0,
                                help="Sokoban level index (0-based). Level 0 is the bundled non-trivial base level; higher indexes are harder.")
+    sokoban_group.add_argument("--list_sokoban_levels", action='store_true',
+                               help="List bundled Sokoban levels with brief descriptions and exit.")
     # --- Provider-Specific Argument Groups ---
     openai_group = parser.add_argument_group('OpenAI Options')
     openai_group.add_argument("--openai_reasoning_effort", default="high", choices=["auto", "low", "medium", "high"],
@@ -824,6 +917,19 @@ def main():
         print(f"FATAL: Error loading configuration (.env or defaults): {e}")
         exit(1)
 
+    # If requested, list Sokoban levels and exit early
+    if args.task == 'sokoban' and args.list_sokoban_levels:
+        try:
+            from environments.sokoban_env import SokobanEnv as _S
+            meta = _S.get_level_metadata()
+            print("Sokoban Levels:")
+            for m in meta:
+                print(f"  [{m['index']}] {m['size']} | goals:{m['goals']} boxes:{m['boxes']} players:{m['players']} | {m['note']}")
+        except Exception as e:
+            print(f"Error listing Sokoban levels: {e}")
+            exit(1)
+        exit(0)
+
     # --- Determine Agent Configuration (Provider, Model, Keys) ---
     agent_provider = args.provider.lower()
     agent_model = args.model
@@ -837,7 +943,7 @@ def main():
             logger.info(f"Info: Agent model not specified. Using default for '{agent_provider}': '{agent_model}'")
     
     # Determine Evaluator Configuration
-    evaluator_model_name = args.evaluator_model or config.get('evaluator_model', 'gemini-1.5-flash')
+    evaluator_model_name = args.evaluator_model or config.get('evaluator_model', 'gemini-2.5-flash-lite')
     evaluator_provider = infer_provider_from_model(evaluator_model_name)
     if evaluator_provider is None:
         logger.warning(f"Could not infer provider for evaluator model '{evaluator_model_name}'. Defaulting to agent's provider '{agent_provider}'.")
@@ -856,6 +962,13 @@ def main():
     logger.info(f"Attempts: {args.attempts}, Max Rounds/Steps: {args.rounds}")
     logger.info(f"Log Level: {args.log_level}, Base Output Directory: {base_output_dir}")
     logger.info(f"Max Tokens (if set): {args.max_tokens}")
+    
+    # Provider-specific run notes
+    if agent_provider == 'anthropic':
+        # Helpful note about usage fields for extended thinking
+        logger.info(
+            "Anthropic note: when extended thinking is enabled, all thinking tokens are billed as output_tokens."
+        )
     
     if agent_provider == 'quality_compute':
         if args.use_collaborative_agent:
@@ -879,7 +992,7 @@ def main():
                         f"reasoning_effort={args.or_reasoning_effort}, provider={args.or_provider}")
 
     # --- API Key Loading ---
-    api_key_map = {'gemini': 'gemini_api_key', 'openai': 'openai_api_key', 'grok': 'xai_api_key', 'quality_compute': 'quality_compute_api_key', 'anthropic': 'anthropic_api_key', 'kimi': 'kimi_api_key', 'openrouter': 'openrouter_api_key'}
+    api_key_map = {'gemini': 'gemini_api_key', 'openai': 'openai_api_key', 'grok': 'xai_api_key', 'quality_compute': 'quality_compute_api_key', 'anthropic': 'anthropic_api_key', 'kimi': 'kimi_api_key', 'openrouter': 'openrouter_api_key', 'deepseek': 'deepseek_api_key'}
     agent_api_key = config.get(api_key_map.get(agent_provider))
     evaluator_api_key = config.get(api_key_map.get(evaluator_provider))
     
@@ -900,19 +1013,25 @@ def main():
 
 
     # --- Build the kwargs dictionary for the Agent LLM Interface ---
+    # Start with common options, then add provider-specific ones selectively.
     agent_interface_kwargs = {
         'max_tokens': args.max_tokens,
-        'thinking_enabled': args.thinking,
-        'thinking_budget': args.thinking_budget,
         'reasoning_effort': args.reasoning_effort,  # For Grok
         'openai_reasoning_effort': args.openai_reasoning_effort,  # For OpenAI
-        'openai_background': args.openai_background,            # NEW
-        'openai_bg_poll': args.openai_bg_poll,                  # NEW
+        'openai_background': args.openai_background,
+        'openai_bg_poll': args.openai_bg_poll,
         'or_allow_fallbacks': args.or_allow_fallbacks,  # For OpenRouter
-        'or_sort': args.or_sort,  # For OpenRouter
+        'or_sort': args.or_sort,                        # For OpenRouter
         'or_reasoning_effort': args.or_reasoning_effort,  # For OpenRouter
-        'or_provider': args.or_provider,  # For OpenRouter
+        'or_provider': args.or_provider,                # For OpenRouter
     }
+
+    # Anthropic: reasoning/thinking OFF by default. Only pass thinking params when explicitly enabled via CLI.
+    if agent_provider == 'anthropic':
+        if args.thinking:
+            agent_interface_kwargs['thinking_enabled'] = True
+            if args.thinking_budget is not None:
+                agent_interface_kwargs['thinking_budget'] = args.thinking_budget
 
     if agent_provider == 'quality_compute':
         agent_interface_kwargs['use_collaborative_agent'] = args.use_collaborative_agent
