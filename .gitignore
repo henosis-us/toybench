@@ -15,3 +15,4 @@ prompt_cache.txt
 # Python and OS cruft
 __pycache__/
 .DS_Store
+*.pyc

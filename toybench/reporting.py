@@ -31,9 +31,12 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, task_name:
 
     # --- Token Usage Aggregation ---
     total_input_tokens = 0
+    total_input_tokens_full = 0  # Sum of input + cache_creation + cache_read
     total_output_tokens = 0
     total_reasoning_tokens = 0  # For reasoning/thinking token aggregation
     total_tokens_overall = 0
+    total_cache_creation_input_tokens = 0
+    total_cache_read_input_tokens = 0
     attempts_with_token_data = 0  # Count attempts that had at least one turn with token data
 
     logger.debug("--- Categorizing Attempt Results and Aggregating Tokens ---")
@@ -74,37 +77,36 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, task_name:
                 if isinstance(token_usage, dict):
                     input_t = token_usage.get('input_tokens') or 0
                     output_t = token_usage.get('output_tokens') or 0
-                    reasoning_t = token_usage.get('reasoning_tokens') or 0
-                    total_t = token_usage.get('total_tokens') or 0
+                    # Accept various explicit reasoning/thinking counters (only these count as reasoning)
+                    reasoning_t = (
+                        token_usage.get('reasoning_tokens')
+                        or token_usage.get('reasoning_output_tokens')
+                        or token_usage.get('thinking_tokens')
+                        or token_usage.get('thinking_output_tokens')
+                        or 0
+                    )
+                    # We treat total_tokens as base = input + output (+ explicit reasoning if provider separates it)
+                    # Do NOT infer reasoning from discrepancies; cache read/create inflate other counters for some providers.
+                    total_t = input_t + output_t + reasoning_t
+                    cache_create_t = token_usage.get('cache_creation_input_tokens') or 0
+                    cache_read_t = token_usage.get('cache_read_input_tokens') or 0
+                    total_input_t = token_usage.get('total_input_tokens') or 0
 
-                    # NEW LOG LINE HERE: Log the raw token_usage before any reconciliation
+                    # Log raw token_usage for debugging
                     logger.debug(f"Turn {turn_data.get('turn', 'N/A')} raw token_usage from LLM interface: {token_usage}")
 
-                    # If total_tokens is missing or 0, sum input and output as fallback
-                    if not total_t and (input_t > 0 or output_t > 0 or reasoning_t > 0): # Include reasoning_t in fallback check
-                        total_t = input_t + output_t + reasoning_t # Ensure reasoning is included in fallback calculation of total
-                        logger.debug(f"Calculated total_tokens as sum of input, output, and reasoning for turn {turn_data.get('turn', 'N/A')}: {total_t}")
+                    # Compute full input tokens if not provided (includes cache read/create)
+                    if not total_input_t:
+                        total_input_t = input_t + cache_create_t + cache_read_t
 
-                    # --- FIX: Calculate reasoning tokens from discrepancy if not explicitly provided or incorrect ---
-                    # This handles cases where the API includes thinking tokens in the total
-                    # but doesn't provide a separate `thoughts_token_count` field, or the provided one is incorrect.
-                    # Only reconcile if there's a positive discrepancy and reasoning_t isn't already the source.
-                    if total_t > (input_t + output_t + (reasoning_t if reasoning_t is not None else 0)): # Add reasoning_t to the sum for comparison
-                        calculated_discrepancy = total_t - (input_t + output_t + (reasoning_t if reasoning_t is not None else 0))
-                        # Only update if the calculated discrepancy is positive
-                        if calculated_discrepancy > 0:
-                            reasoning_t += calculated_discrepancy # Add discrepancy to existing reasoning_t
-                            logger.debug(
-                                f"Turn {turn_data.get('turn', 'N/A')} had a discrepancy in total tokens. "
-                                f"Attributing the {calculated_discrepancy} token difference to reasoning. "
-                                f"New Reasoning_t: {reasoning_t} (Total: {total_t}, Input: {input_t}, Output: {output_t})"
-                            )
-
-                    # Add to overall totals
+                    # Aggregate
                     total_input_tokens += input_t
+                    total_input_tokens_full += total_input_t
                     total_output_tokens += output_t
                     total_reasoning_tokens += reasoning_t
                     total_tokens_overall += total_t
+                    total_cache_creation_input_tokens += cache_create_t
+                    total_cache_read_input_tokens += cache_read_t
                     attempt_had_tokens = True
 
         if attempt_had_tokens:
@@ -132,6 +134,9 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, task_name:
         'solar_differentiated_score': None,
         'total_input_tokens': total_input_tokens,
         'total_output_tokens': total_output_tokens,
+        'total_cache_creation_input_tokens': total_cache_creation_input_tokens,
+        'total_cache_read_input_tokens': total_cache_read_input_tokens,
+        'total_input_tokens_full': total_input_tokens_full,
         'total_reasoning_tokens': total_reasoning_tokens,
         'total_tokens_all_attempts': total_tokens_overall,
         'attempts_with_token_data': attempts_with_token_data,
@@ -151,7 +156,10 @@ def calculate_metrics(attempt_results: list[dict], num_attempts: int, task_name:
     metrics['pass@20'] = 1.0 if any(r.get('score') == 3 and not r.get('premature_failure', False) for r in attempt_results[:k_pass_check]) else 0.0
 
     logger.info(f"Metrics calculated: Success={metrics['num_successful']}, Partial={metrics['num_partial']}, Failed (Score 1)={metrics['num_failed_score']}, Failed (Error)={metrics['num_failed_error']}, Solar Differentiated Score={metrics.get('solar_differentiated_score', 'N/A')}")
-    logger.info(f"Token Metrics: TotalInput={metrics['total_input_tokens']}, TotalOutput={metrics['total_output_tokens']}, TotalReasoning={metrics['total_reasoning_tokens']}, TotalOverall={metrics['total_tokens_all_attempts']} (from {metrics['attempts_with_token_data']} attempts)")
+    logger.info(
+        "Token Metrics: TotalInput(base)=%s, TotalInput(full)=%s, CacheCreate=%s, CacheRead=%s, TotalOutput=%s, TotalReasoning=%s, TotalOverall=%s (from %s attempts)",
+        metrics['total_input_tokens'], metrics['total_input_tokens_full'], metrics['total_cache_creation_input_tokens'], metrics['total_cache_read_input_tokens'], metrics['total_output_tokens'], metrics['total_reasoning_tokens'], metrics['total_tokens_all_attempts'], metrics['attempts_with_token_data']
+    )
     logger.debug(f"Final metrics dictionary: {metrics}")
     return metrics
 
@@ -171,7 +179,10 @@ def format_report(metrics_dict: dict, task_name: str, provider: str, model: str,
     attempts_requested = metrics_dict.get('num_attempts_requested', 0)
 
     total_input = metrics_dict.get('total_input_tokens', 0)
+    total_input_full = metrics_dict.get('total_input_tokens_full', 0)
     total_output = metrics_dict.get('total_output_tokens', 0)
+    total_cache_create = metrics_dict.get('total_cache_creation_input_tokens', 0)
+    total_cache_read = metrics_dict.get('total_cache_read_input_tokens', 0)
     total_reasoning = metrics_dict.get('total_reasoning_tokens', 0)
     total_overall = metrics_dict.get('total_tokens_all_attempts', 0)
     avg_input = metrics_dict.get('avg_input_tokens_per_attempt', 0)
@@ -209,7 +220,10 @@ def format_report(metrics_dict: dict, task_name: str, provider: str, model: str,
     if token_attempts > 0:
         report.extend([
             f"--- Token Usage (Based on {token_attempts} attempts) ---",
-            f"Total Input     : {total_input:,}",
+            f"Total Input (base) : {total_input:,}",
+            f"Total Cache Create : {total_cache_create:,}",
+            f"Total Cache Read   : {total_cache_read:,}",
+            f"Total Input (full) : {total_input_full:,}",
             f"Total Output    : {total_output:,}",
             f"Total Reasoning : {total_reasoning:,}",
             f"Total Overall   : {total_overall:,}",

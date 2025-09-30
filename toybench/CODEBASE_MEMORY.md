@@ -24,7 +24,7 @@
   - Valid moves per turn: `up`, `down`, `left`, `right`, `reset`; agent outputs exactly one move inside ```action```.
   - Deterministic evaluation in the environment: 3 if all goals have boxes, 2 if some boxes on goals, 1 otherwise.
   - Visual artifacts per turn saved to attempt dir: `sokoban_iteration_<n>.html`, `sokoban_screenshot_iteration_<n>.png`, and logs. Screenshots are optional if Selenium isn’t available.
-  - CLI: `--sokoban_level` selects the level index (0=base, higher is harder). The trivial smoke-test level has been removed.
+  - CLI: `--sokoban_level` selects the level index (0=base; several bundled levels include simple two‑push, easy, medium, and hard variants). Use `--list_sokoban_levels` to print all levels with brief notes.
   - Prompts: `tasks/sokoban/sokoban_goal.txt`, `tasks/sokoban/sokoban_generate.txt` (finaleval file exists for docs, not used).
 
 ## Prompts & Task Files

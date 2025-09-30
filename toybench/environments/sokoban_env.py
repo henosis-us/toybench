@@ -63,7 +63,79 @@ class SokobanEnv(BaseEnvironment):
             "#   .#   #.   #",
             "###############",
         ],
+        # SIMPLE Two-push Level: small enclosed board requiring two upward pushes
+        [
+            "#####",
+            "# . #",
+            "#   #",
+            "# $ #",
+            "# @ #",
+            "#####",
+        ],
+        # EASY Level: two boxes and two goals in a compact room
+        [
+            "#########",
+            "#   .   #",
+            "#  $ $  #",
+            "#   @   #",
+            "#   .   #",
+            "#########",
+        ],
+        # MEDIUM Level: four boxes and four goals with central walls
+        [
+            "###########",
+            "#  #   #  #",
+            "# .$   $. #",
+            "#   ###   #",
+            "### #@# ###",
+            "#   ###   #",
+            "# .$   $. #",
+            "#  #   #  #",
+            "###########",
+        ],
+        # HARD Level: symmetrical puzzle with corridors and four goals
+        [
+            "#############",
+            "# .   #   . #",
+            "#  $ ### $  #",
+            "#     @     #",
+            "#  $ ### $  #",
+            "# .   #   . #",
+            "#############",
+        ],
     ]
+
+    # Brief notes aligned by index to LEVELS
+    LEVEL_NOTES: List[str] = [
+        "Base: compact room with 2 boxes and 2 goals",
+        "Hard A: multiple boxes in corridors; careful ordering needed",
+        "Hard B: compact maze with tight turns; scattered goals",
+        "Simple: two-push vertical solution (tutorial-like)",
+        "Easy: two boxes and two goals in a compact room",
+        "Medium: four boxes with central walls; requires routing",
+        "Hard: symmetrical corridors with four goals",
+    ]
+
+    @classmethod
+    def get_level_metadata(cls) -> List[Dict[str, Any]]:
+        meta: List[Dict[str, Any]] = []
+        for i, level in enumerate(cls.LEVELS):
+            h = len(level)
+            w = len(level[0]) if h else 0
+            # Count symbols from raw ASCII layout
+            goals = sum(row.count('.') + row.count('*') + row.count('+') for row in level)
+            boxes = sum(row.count('$') + row.count('*') for row in level)
+            players = sum(row.count('@') + row.count('+') for row in level)
+            note = cls.LEVEL_NOTES[i] if i < len(cls.LEVEL_NOTES) else ""
+            meta.append({
+                'index': i,
+                'size': f"{h}x{w}",
+                'goals': goals,
+                'boxes': boxes,
+                'players': players,
+                'note': note,
+            })
+        return meta
 
     MOVE_DELTAS = {
         "up": (-1, 0),

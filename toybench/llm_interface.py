@@ -47,6 +47,8 @@ import base64
 import uuid
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+import threading
+import random
 
 # Import heavy dependencies only for type checking
 if TYPE_CHECKING:
@@ -96,6 +98,197 @@ logger = logging.getLogger(__name__)
 TokenUsage = Optional[Dict[str, int | None]]
 RawAPIResponse = Optional[Any]
 LLMResponse = Tuple[Optional[str], TokenUsage, RawAPIResponse]
+
+# ---------------------------------------------------------------------------
+#  Anthropic adaptive rate limiter (Tier-4 Sonnet 4.x defaults)
+# ---------------------------------------------------------------------------
+
+class _TokenBucket:
+    def __init__(self, capacity: float, refill_per_sec: float):
+        self.capacity = float(capacity)
+        self.refill_per_sec = float(refill_per_sec)
+        self.tokens = float(capacity)
+        self.last = time.time()
+
+    def add_refill(self):
+        now = time.time()
+        dt = max(0.0, now - self.last)
+        if dt > 0:
+            self.tokens = min(self.capacity, self.tokens + dt * self.refill_per_sec)
+            self.last = now
+
+    def try_consume(self, amount: float) -> bool:
+        self.add_refill()
+        if self.tokens >= amount:
+            self.tokens -= amount
+            return True
+        return False
+
+    def time_until(self, amount: float) -> float:
+        self.add_refill()
+        if self.tokens >= amount:
+            return 0.0
+        deficit = amount - self.tokens
+        if self.refill_per_sec <= 0:
+            return 60.0  # fallback wait
+        return deficit / self.refill_per_sec
+
+
+class _AnthropicRateLimiter:
+    """Header-agnostic adaptive limiter that uses Anthropic usage plus known Tier-4 limits.
+
+    Notes:
+    - Limits are per model family. Sonnet 4.x family includes 4 and 4.5.
+    - Standard context (<=200k) Tier 4 caps used by default:
+        RPM=4000, ITPM=2,000,000, OTPM=400,000
+    - If a request exceeds 200k tokens observed, switch to long-context caps for that observation window
+        ITPM=1,000,000; OTPM=200,000
+    - cache_read_input_tokens are ignored for ITPM on Sonnet 4.x standard context.
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+        # Standard context limits (Tier 4 Sonnet 4.x)
+        self.RPM = 4000.0
+        self.ITPM_standard = 2_000_000.0
+        self.OTPM_standard = 400_000.0
+        # Long context limits (requests >200k)
+        self.ITPM_long = 1_000_000.0
+        self.OTPM_long = 200_000.0
+
+        # Token buckets (per second refill)
+        self.req_bucket = _TokenBucket(capacity=self.RPM, refill_per_sec=self.RPM / 60.0)
+        self.in_bucket = _TokenBucket(capacity=self.ITPM_standard, refill_per_sec=self.ITPM_standard / 60.0)
+        self.out_bucket = _TokenBucket(capacity=self.OTPM_standard, refill_per_sec=self.OTPM_standard / 60.0)
+
+        # Rolling estimates (EWMA)
+        self.ewma_in = 5000.0  # conservative default until first response
+        self.ewma_out = 1000.0
+        self.alpha = 0.2
+
+        self.lock = threading.Lock()
+        self.target_utilization = 0.85
+
+    @staticmethod
+    def _is_long_context(observed_total_input: Optional[int]) -> bool:
+        return isinstance(observed_total_input, int) and observed_total_input > 200_000
+
+    def _apply_regime(self, long_context: bool):
+        # Reset capacities (keep current token levels bounded by new capacity)
+        if long_context:
+            self.in_bucket.capacity = self.ITPM_long
+            self.in_bucket.refill_per_sec = self.ITPM_long / 60.0
+            self.out_bucket.capacity = self.OTPM_long
+            self.out_bucket.refill_per_sec = self.OTPM_long / 60.0
+        else:
+            self.in_bucket.capacity = self.ITPM_standard
+            self.in_bucket.refill_per_sec = self.ITPM_standard / 60.0
+            self.out_bucket.capacity = self.OTPM_standard
+            self.out_bucket.refill_per_sec = self.OTPM_standard / 60.0
+        # Clamp token levels to capacity
+        self.in_bucket.tokens = min(self.in_bucket.tokens, self.in_bucket.capacity)
+        self.out_bucket.tokens = min(self.out_bucket.tokens, self.out_bucket.capacity)
+
+    def pre_dispatch(self, est_in: Optional[float], est_out: Optional[float]):
+        with self.lock:
+            # Use EWMA if no estimate
+            need_in = float(est_in) if isinstance(est_in, (int, float)) and est_in > 0 else self.ewma_in
+            need_out = float(est_out) if isinstance(est_out, (int, float)) and est_out > 0 else self.ewma_out
+
+            # Apply target utilization to be gentle
+            need_in *= self.target_utilization
+            need_out *= self.target_utilization
+
+            # Wait until all three buckets can satisfy the request
+            while True:
+                t_req = self.req_bucket.time_until(1.0)
+                t_in = self.in_bucket.time_until(need_in)
+                t_out = self.out_bucket.time_until(need_out)
+                wait_s = max(t_req, t_in, t_out)
+                if wait_s <= 0:
+                    # consume now
+                    self.req_bucket.try_consume(1.0)
+                    self.in_bucket.try_consume(need_in)
+                    self.out_bucket.try_consume(need_out)
+                    break
+                # add jitter up to 250ms
+                jitter = random.uniform(0, 0.25)
+                sleep_for = wait_s + jitter
+                if sleep_for > 0.1:
+                    logging.getLogger(__name__).info(
+                        "Anthropic limiter sleeping %.2fs (req=%.2fs in=%.2fs out=%.2fs) name=%s", sleep_for, t_req, t_in, t_out, self.name
+                    )
+                # Release the lock while sleeping to allow concurrent updates
+                self.lock.release()
+                try:
+                    time.sleep(sleep_for)
+                finally:
+                    self.lock.acquire()
+
+    def post_response(self, usage: Dict[str, Any], max_tokens_param: Optional[int] = None):
+        with self.lock:
+            # Compute actual costs
+            input_tokens = usage.get("input_tokens")
+            cache_creation = usage.get("cache_creation_input_tokens")
+            cache_read = usage.get("cache_read_input_tokens")
+            output_tokens = usage.get("output_tokens")
+
+            # total input observed for regime detection
+            total_in_observed = 0
+            for v in (input_tokens, cache_creation, cache_read):
+                if isinstance(v, int):
+                    total_in_observed += v
+
+            # Regime switch if needed
+            self._apply_regime(self._is_long_context(total_in_observed))
+
+            # For standard Sonnet 4.x, cache_read_input_tokens do NOT count toward ITPM
+            counted_in = 0
+            for v in (input_tokens, cache_creation):
+                if isinstance(v, int):
+                    counted_in += v
+
+            counted_out = output_tokens if isinstance(output_tokens, int) else None
+
+            # Adjust buckets by difference between pre-debit estimate and actuals by refilling back any over-reservation.
+            # Since we consumed estimates before, we need to reconcile.
+            # Add back over-reserved tokens (if negative, try_consume will handle insufficient tokens next time).
+            if counted_in is not None:
+                # Bring in_bucket tokens closer to reality by adding back the difference
+                self.in_bucket.tokens = min(self.in_bucket.capacity, self.in_bucket.tokens + max(0.0, self.ewma_in * self.target_utilization - counted_in))
+            if counted_out is not None:
+                self.out_bucket.tokens = min(self.out_bucket.capacity, self.out_bucket.tokens + max(0.0, self.ewma_out * self.target_utilization - counted_out))
+
+            # Update EWMAs with actuals (fallback to max_tokens if output unknown)
+            actual_in_for_ewma = counted_in if isinstance(counted_in, (int, float)) and counted_in > 0 else self.ewma_in
+            if isinstance(actual_in_for_ewma, (int, float)):
+                self.ewma_in = (1 - self.alpha) * self.ewma_in + self.alpha * float(actual_in_for_ewma)
+
+            if isinstance(counted_out, (int, float)) and counted_out > 0:
+                out_val = float(counted_out)
+            elif isinstance(max_tokens_param, int) and max_tokens_param > 0:
+                out_val = float(max_tokens_param)
+            else:
+                out_val = self.ewma_out
+            self.ewma_out = (1 - self.alpha) * self.ewma_out + self.alpha * float(out_val)
+
+
+_anthropic_limiters: Dict[str, _AnthropicRateLimiter] = {}
+
+
+def _sonnet_family_name(model: str) -> str:
+    m = (model or "").lower()
+    if m.startswith("claude-4-5-sonnet") or m.startswith("claude-4-sonnet"):
+        return "sonnet-4.x"
+    # default to per-model scoping
+    return m
+
+
+def get_anthropic_limiter(model: str) -> _AnthropicRateLimiter:
+    key = _sonnet_family_name(model)
+    if key not in _anthropic_limiters:
+        _anthropic_limiters[key] = _AnthropicRateLimiter(name=key)
+    return _anthropic_limiters[key]
 
 # ---------------------------------------------------------------------------
 #  Base abstract interface
@@ -316,7 +509,7 @@ class OpenAIInterface(LLMInterface):
         api_key: str,
         model_name: str,
         provider_name: str,
-        reasoning_effort: str = "high",
+        reasoning_effort: str = "medium",
         timeout: Optional[float] = 1200,  # 20 minutes default
         max_retries: int = 1,             # minimize silent SDK retries
         background_enabled: bool = False,
@@ -870,7 +1063,7 @@ class QualityComputeInterface(LLMInterface):
         if self.is_collaborative:
             endpoint = "/api/generate_collaborative"
             payload = {
-                "input": prompt_or_history,
+                "input": prompt_or_history,  # This should be a string
                 "team_leader_model": self.config.get("team_leader_model"),
                 "student_model": self.config.get("student_model"),
                 "judge_model": self.config.get("judge_model"),
@@ -880,7 +1073,7 @@ class QualityComputeInterface(LLMInterface):
         else:
             endpoint = "/api/generate"
             payload = {
-                "input": prompt_or_history,
+                "input": prompt_or_history,  # This can be string or list
                 "model": self.model_name,
                 "ensemble_mode": self.config.get("ensemble_mode"),
                 "judge_model": self.config.get("judge_model"),
@@ -892,18 +1085,41 @@ class QualityComputeInterface(LLMInterface):
         return self._prepare_and_call(prompt)
 
     def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
+        # Convert Gemini-style history to simple text messages for Quality Compute
         messages = []
         for entry in history:
             role = "assistant" if entry.get("role") == "model" else "user"
             parts = entry.get("parts", [])
-            content = " ".join([p.get("text", "") for p in parts if isinstance(p, dict) and "text" in p]) if isinstance(parts, list) else str(parts)
-            if content:
-                messages.append({"role": role, "content": content})
-
+            text_content = ""
+            
+            # Extract text from parts
+            if isinstance(parts, list):
+                for part in parts:
+                    if isinstance(part, str):
+                        text_content += part + "\n"
+                    elif isinstance(part, dict) and "text" in part:
+                        text_content += part["text"] + "\n"
+            elif isinstance(parts, str):
+                text_content = parts
+            
+            if text_content.strip():
+                messages.append({"role": role, "content": text_content.strip()})
+    
+        if not messages:
+            return None, None, None
+    
+        # For collaborative mode, use last user message
         if self.is_collaborative:
-            last_user_prompt = messages[-1]['content'] if messages and messages[-1]['role'] == 'user' else "No user prompt."
-            return self._prepare_and_call(last_user_prompt)
-
+            last_user_prompt = None
+            for msg in reversed(messages):
+                if msg['role'] == 'user':
+                    last_user_prompt = msg['content']
+                    break
+            if last_user_prompt:
+                return self._prepare_and_call(last_user_prompt)
+            return None, None, None
+    
+        # For standard mode, pass the full conversation
         return self._prepare_and_call(messages)
 
     def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
@@ -919,7 +1135,18 @@ class QualityComputeInterface(LLMInterface):
 #  Anthropic implementation
 # ---------------------------------------------------------------------------
 class AnthropicInterface(LLMInterface):
-    def __init__(self, api_key: str, model_name: str, provider_name: str, thinking_enabled: bool = False, thinking_budget: int = 16000):
+    def __init__(
+        self,
+        api_key: str,
+        model_name: str,
+        provider_name: str,
+        thinking_enabled: bool = False,
+        thinking_budget: int = 16000,
+        use_prompt_caching: bool = True,
+        cache_ttl: Optional[str] = None,
+        add_prompt_caching_header: bool = False,
+        enable_context_1m_beta: Optional[bool] = None,
+    ):
         super().__init__(api_key, model_name, provider_name)
         if not api_key:
             raise ValueError("Anthropic API Key is required.")
@@ -928,11 +1155,24 @@ class AnthropicInterface(LLMInterface):
 
         self.thinking_enabled = thinking_enabled
         self.thinking_budget = thinking_budget
+        self.use_prompt_caching = use_prompt_caching
+        # cache_ttl can be None (SDK default 5m), "5m", or "1h"
+        self.cache_ttl = cache_ttl
+        # As of GA, this header is not required; keep optional for backwards compatibility
+        self.add_prompt_caching_header = add_prompt_caching_header
+        # 1M context beta header toggle (default from env if not provided)
+        if enable_context_1m_beta is None:
+            env_flag = os.environ.get("ANTHROPIC_CONTEXT_1M", "").strip().lower()
+            enable_context_1m_beta = env_flag in ("1", "true", "yes", "on")
+        self.enable_context_1m_beta = bool(enable_context_1m_beta)
 
         try:
             self.client = anthropic.Anthropic(api_key=api_key)
             self.model = model_name
-            logger.info(f"AnthropicInterface initialised with model: {model_name}, thinking_enabled: {thinking_enabled}")
+            logger.info(
+                "AnthropicInterface initialised with model: %s, thinking_enabled: %s, use_prompt_caching: %s, cache_ttl: %s",
+                model_name, thinking_enabled, use_prompt_caching, cache_ttl
+            )
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic client for model {model_name}: {e}", exc_info=True)
             raise ValueError(f"Anthropic initialization failed: {e}") from e
@@ -942,29 +1182,112 @@ class AnthropicInterface(LLMInterface):
         token_usage: TokenUsage = None
         retries = 3
         delay = 10
+        limiter = get_anthropic_limiter(self.model)
 
         for attempt in range(retries):
             try:
+                # Prepare system as content blocks (to support prompt caching)
+                system_param: Optional[List[Dict[str, Any]]] = None
+                if system_prompt and isinstance(system_prompt, str) and system_prompt.strip():
+                    system_block: Dict[str, Any] = {"type": "text", "text": system_prompt}
+                    if self.use_prompt_caching:
+                        # Attach cache_control to system to keep instructions cached
+                        cache_control: Dict[str, Any] = {"type": "ephemeral"}
+                        if isinstance(self.cache_ttl, str) and self.cache_ttl in ("5m", "1h"):
+                            cache_control["ttl"] = self.cache_ttl
+                        system_block["cache_control"] = cache_control
+                    system_param = [system_block]
+
+                # Normalize messages to Anthropic content blocks and attach cache_control at the end
+                norm_messages: List[Dict[str, Any]] = []
+                for msg in messages:
+                    role = msg.get("role")
+                    content = msg.get("content")
+                    # If already a list of content blocks, use as-is; if string, wrap as text block
+                    if isinstance(content, list):
+                        content_blocks = content[:]
+                    else:
+                        content_blocks = [{"type": "text", "text": content}] if isinstance(content, str) else []
+
+                    norm_messages.append({"role": role, "content": content_blocks})
+
+                # Add a cache breakpoint on the final content block of the final message
+                # This enables incremental conversation caching as documented.
+                if self.use_prompt_caching and norm_messages:
+                    last_msg = norm_messages[-1]
+                    blocks = last_msg.get("content") or []
+                    if isinstance(blocks, list) and len(blocks) > 0:
+                        last_block = blocks[-1]
+                        if isinstance(last_block, dict) and last_block.get("type") == "text":
+                            text_val = last_block.get("text")
+                            if isinstance(text_val, str) and text_val.strip():
+                                cache_control: Dict[str, Any] = {"type": "ephemeral"}
+                                if isinstance(self.cache_ttl, str) and self.cache_ttl in ("5m", "1h"):
+                                    cache_control["ttl"] = self.cache_ttl
+                                last_block["cache_control"] = cache_control
+
                 anthropic_kwargs = {
                     "model": self.model,
                     "max_tokens": 64000,  # default; caller can override
-                    "messages": messages,
+                    "messages": norm_messages,
                 }
-                if system_prompt:
-                    anthropic_kwargs["system"] = system_prompt
+                if system_param:
+                    anthropic_kwargs["system"] = system_param
 
                 # Only include non-None extra kwargs
                 for key, value in kwargs.items():
                     if key not in ["model", "messages", "system"] and value is not None:
                         anthropic_kwargs[key] = value
 
+                # Only include the 'thinking' field when explicitly enabled.
+                # By default, do not send any 'thinking' parameter for Anthropic models.
                 if self.thinking_enabled:
                     anthropic_kwargs["thinking"] = {"type": "enabled", "budget_tokens": self.thinking_budget}
+                    logger.info(
+                        "Anthropic request: thinking enabled with budget=%s (max_tokens=%s)",
+                        self.thinking_budget,
+                        anthropic_kwargs.get("max_tokens")
+                    )
                 else:
-                    anthropic_kwargs["thinking"] = {"type": "disabled"}
+                    logger.info("Anthropic request: thinking disabled (no 'thinking' field sent)")
+
+                extra_headers = {}
+                beta_values: List[str] = []
+                if self.add_prompt_caching_header:
+                    # Optional legacy beta header used in some examples; safe to omit in GA
+                    beta_values.append("prompt-caching-2024-07-31")
+                if self.enable_context_1m_beta:
+                    beta_values.append("context-1m-2025-08-07")
+                if beta_values:
+                    extra_headers["anthropic-beta"] = ",".join(beta_values)
+                if not extra_headers:
+                    extra_headers = None
+
+                # Pre-dispatch throttle using adaptive limiter
+                max_tokens_param = None
+                if "max_tokens" in kwargs and isinstance(kwargs["max_tokens"], int):
+                    max_tokens_param = kwargs["max_tokens"]
+                elif isinstance(anthropic_kwargs.get("max_tokens"), int):
+                    max_tokens_param = anthropic_kwargs.get("max_tokens")
+                else:
+                    max_tokens_param = 4096  # conservative default to avoid OTPM spikes
+
+                # We don't know exact input tokens pre-encoding; use EWMA
+                est_in = limiter.ewma_in
+                est_out = float(max_tokens_param)
+                logger.debug(
+                    "Anthropic limiter pre-dispatch: model=%s family=%s est_in=%.1f est_out=%.1f ewma_in=%.1f ewma_out=%.1f",
+                    self.model,
+                    _sonnet_family_name(self.model),
+                    est_in,
+                    est_out,
+                    limiter.ewma_in,
+                    limiter.ewma_out,
+                )
+                limiter.pre_dispatch(est_in=est_in, est_out=est_out)
 
                 accumulated_text_parts: List[str] = []
-                with self.client.messages.stream(**anthropic_kwargs) as stream:
+                with self.client.messages.stream(**anthropic_kwargs, extra_headers=extra_headers) as stream:
                     for event in stream:
                         if event.type == "content_block_delta":
                             if getattr(event.delta, "type", "") == "text_delta":
@@ -977,19 +1300,106 @@ class AnthropicInterface(LLMInterface):
                 text_response = "".join(accumulated_text_parts).strip()
 
                 if final_message and hasattr(final_message, 'usage'):
-                    usage_data = final_message.usage
-                    input_tokens = getattr(usage_data, 'input_tokens', None)
-                    output_tokens = getattr(usage_data, 'output_tokens', None)
-                    total_tokens = (input_tokens + output_tokens) if (input_tokens is not None and output_tokens is not None) else None
-                    token_usage = {"input_tokens": input_tokens, "output_tokens": output_tokens, "total_tokens": total_tokens}
+                    # Robust extraction of all token types, including any future/unknown fields
+                    usage_obj = final_message.usage
+                    usage_dict: Dict[str, Any] = {}
+                    try:
+                        if hasattr(usage_obj, 'model_dump'):
+                            usage_dict = usage_obj.model_dump() or {}
+                        elif hasattr(usage_obj, 'to_dict'):
+                            usage_dict = usage_obj.to_dict() or {}
+                        else:
+                            # Fallback to attribute scraping
+                            for key in dir(usage_obj):
+                                if not key.startswith('_') and hasattr(usage_obj, key):
+                                    try:
+                                        val = getattr(usage_obj, key)
+                                        # Only keep JSON-serializable primitives and dicts
+                                        if isinstance(val, (int, float, str, bool, type(None), dict)):
+                                            usage_dict[key] = val
+                                    except Exception:
+                                        continue
+                    except Exception:
+                        pass
+
+                    # Standard known fields
+                    input_tokens = usage_dict.get("input_tokens")
+                    output_tokens = usage_dict.get("output_tokens")
+                    cache_creation_input_tokens = usage_dict.get("cache_creation_input_tokens")
+                    cache_read_input_tokens = usage_dict.get("cache_read_input_tokens")
+
+                    # Optional detailed cache_creation breakdown (ephemeral_5m / 1h)
+                    cache_creation_details = usage_dict.get("cache_creation")
+                    ephemeral_5m = None
+                    ephemeral_1h = None
+                    if isinstance(cache_creation_details, dict):
+                        ephemeral_5m = cache_creation_details.get("ephemeral_5m_input_tokens")
+                        ephemeral_1h = cache_creation_details.get("ephemeral_1h_input_tokens")
+
+                    # Compute totals
+                    # total_input_tokens: full input including cache creation/read (observability only)
+                    total_input = 0
+                    for v in (input_tokens, cache_creation_input_tokens, cache_read_input_tokens):
+                        if isinstance(v, int):
+                            total_input += v
+                    # total_tokens (base): standard billing-style total = input_tokens + output_tokens
+                    total_tokens = None
+                    if isinstance(input_tokens, int) and isinstance(output_tokens, int):
+                        total_tokens = input_tokens + output_tokens
+
+                    # Start with all raw usage fields so unknown keys (e.g., thinking tokens) are preserved
+                    token_usage = {k: v for k, v in usage_dict.items() if v is not None}
+                    # Add flattened convenience fields and totals
+                    if ephemeral_5m is not None:
+                        token_usage["cache_creation_ephemeral_5m_input_tokens"] = ephemeral_5m
+                    if ephemeral_1h is not None:
+                        token_usage["cache_creation_ephemeral_1h_input_tokens"] = ephemeral_1h
+                    if total_input > 0:
+                        token_usage["total_input_tokens"] = total_input
+                    if total_tokens is not None:
+                        token_usage["total_tokens"] = total_tokens
+
+                    try:
+                        logger.info(
+                            "Anthropic response usage: %s (stop_reason=%s)",
+                            json.dumps(token_usage, ensure_ascii=False),
+                            getattr(final_message, 'stop_reason', None)
+                        )
+                    except Exception:
+                        pass
 
                 raw_api_response_serialized = self._serialize_response(final_message)
+                # Update limiter with actual usage
+                if token_usage is not None:
+                    try:
+                        limiter.post_response(token_usage, max_tokens_param=max_tokens_param)
+                    except Exception:
+                        pass
                 return text_response, token_usage, raw_api_response_serialized
 
             except anthropic.APIConnectionError as e:
                 logger.warning(f"Anthropic API connection error (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
             except anthropic.RateLimitError as e:
-                logger.warning(f"Anthropic API rate limit error (Attempt {attempt+1}/{retries}): {e}", exc_info=True)
+                # Respect retry-after if provided
+                retry_after_s = None
+                try:
+                    resp = getattr(e, "response", None)
+                    headers = getattr(resp, "headers", None)
+                    if headers and isinstance(headers, dict):
+                        ra = headers.get("retry-after") or headers.get("Retry-After")
+                        if ra is not None:
+                            retry_after_s = float(ra)
+                except Exception:
+                    pass
+                if retry_after_s is None:
+                    # Exponential backoff with jitter
+                    retry_after_s = min(60.0, (delay * (attempt + 1))) + random.uniform(0, 0.25)
+                logger.warning(
+                    f"Anthropic 429 RateLimitError. Sleeping {retry_after_s:.2f}s before retry (Attempt {attempt+1}/{retries})."
+                )
+                time.sleep(retry_after_s)
+                # Continue to next attempt immediately
+                continue
             except anthropic.APIStatusError as e:
                 logger.warning(f"Anthropic API status error {e.status_code} (Attempt {attempt+1}/{retries}): {e.message}", exc_info=True)
             except Exception as e:
@@ -1173,6 +1583,112 @@ class KimiInterface(LLMInterface):
 
     def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
         logger.warning("Multimodal generation is not currently supported by KimiInterface.")
+        return None, None, None
+
+    def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:
+        return self.generate_action(prompt, **kwargs)
+
+# ---------------------------------------------------------------------------
+#  DeepSeek implementation (OpenAI-compatible chat.completions)
+# ---------------------------------------------------------------------------
+class DeepSeekInterface(LLMInterface):
+    def __init__(self, api_key: str, model_name: str, provider_name: str):
+        super().__init__(api_key, model_name, provider_name)
+        if not api_key:
+            raise ValueError("DeepSeek API Key is required for DeepSeekInterface.")
+        if OpenAI is None:
+            raise ImportError("openai library is not installed. Please install it to use DeepSeekInterface.")
+
+        try:
+            # DeepSeek uses OpenAI-compatible SDK at a custom base URL
+            self.client = OpenAI(base_url="https://api.deepseek.com", api_key=api_key)
+            self.model = model_name
+            logger.info(f"DeepSeekInterface initialised with model: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize DeepSeek client for model {model_name}: {e}", exc_info=True)
+            raise ValueError(f"DeepSeek initialization failed: {e}") from e
+
+    def _call_deepseek_api(self, messages: List[Dict[str, Any]], **kwargs) -> LLMResponse:
+        text_response: Optional[str] = None
+        token_usage: TokenUsage = None
+        resp: Optional[Any] = None
+        try:
+            # Strip None-valued kwargs
+            safe_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                timeout=600,
+                **safe_kwargs
+            )
+            if resp and getattr(resp, "choices", None):
+                text_response = resp.choices[0].message.content
+
+            if getattr(resp, "usage", None):
+                usage = resp.usage
+                token_usage = {
+                    "input_tokens": getattr(usage, 'prompt_tokens', None),
+                    "output_tokens": getattr(usage, 'completion_tokens', None),
+                    "total_tokens": getattr(usage, 'total_tokens', None),
+                    # DeepSeek prompt-cache fields (added by provider)
+                    # Record only the token types; no cost math here.
+                    "prompt_cache_hit_tokens": getattr(usage, 'prompt_cache_hit_tokens', None),
+                    "prompt_cache_miss_tokens": getattr(usage, 'prompt_cache_miss_tokens', None),
+                }
+
+            raw_api_response = self._serialize_response(resp)
+            return text_response, token_usage, raw_api_response
+        except Exception as e:
+            logger.error(f"DeepSeek API error: {e}", exc_info=True)
+            return None, None, None
+
+    def _serialize_response(self, response: Any) -> Dict:
+        try:
+            if hasattr(response, 'model_dump'):
+                return response.model_dump()
+            return str(response)
+        except Exception as e:
+            logger.warning(f"Failed to serialize DeepSeek response: {e}")
+            return {}
+
+    def _convert_to_openai_messages(self, history: List[Dict]) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = []
+        last_role = None
+        for entry in history:
+            role = "assistant" if entry.get("role") == "model" else "user"
+            parts = entry.get("parts", [])
+            text_parts: List[str] = []
+            if isinstance(parts, list):
+                for p in parts:
+                    if isinstance(p, str):
+                        text_parts.append(p)
+                    elif isinstance(p, dict) and "text" in p:
+                        text_parts.append(p["text"])
+            elif isinstance(parts, str):
+                text_parts.append(parts)
+            content = "\n".join(text_parts).strip()
+            if not content:
+                continue
+            if messages and last_role == role:
+                messages[-1]["content"] += "\n" + content
+            else:
+                messages.append({"role": role, "content": content})
+                last_role = role
+        return messages
+
+    def generate_action(self, prompt: str, **kwargs) -> LLMResponse:
+        messages = [{"role": "user", "content": prompt}]
+        return self._call_deepseek_api(messages, **kwargs)
+
+    def generate_action_conversational(self, history: List[Dict], **kwargs) -> LLMResponse:
+        messages = self._convert_to_openai_messages(history)
+        if not messages:
+            return None, None, None
+        return self._call_deepseek_api(messages, **kwargs)
+
+    def generate_content_multimodal(self, contents: List[Dict], **kwargs) -> LLMResponse:
+        logger.warning("Multimodal generation is not currently supported by DeepSeekInterface.")
         return None, None, None
 
     def evaluate_outcome(self, prompt: str, **kwargs) -> LLMResponse:

@@ -16,6 +16,9 @@ def load_config():
         # OpenAI
         'openai_api_key':      os.getenv('OPENAI_API_KEY'),
         
+        # DeepSeek
+        'deepseek_api_key':    os.getenv('DEEPSEEK_API_KEY'),
+        
         # xAI Grok
         'xai_api_key':         os.getenv('XAI_API_KEY'),  # Added for xAI Grok support
         
@@ -38,9 +41,10 @@ def load_config():
         'default_openai_model': 'o4-mini',
         'default_grok_model':   'grok-3-mini-beta',  # Added default model for Grok provider
         'default_anthropic_model': 'claude-3-5-sonnet-20241022',  # New: Default Anthropic model
+        'default_deepseek_model': 'deepseek-chat',  # Default DeepSeek model
         
-        # Evaluator (text-based by default)
-        'evaluator_model':     'gemini-1.5-flash-8b',
+        # Evaluator (Gemini multimodal by default)
+        'evaluator_model':     'gemini-2.5-flash-lite',
         
         # Where task prompt files live
         'task_definitions_dir': 'tasks'
@@ -53,6 +57,8 @@ def load_config():
         logger.warning("OPENAI_API_KEY environment variable not set.")
     if not config['xai_api_key']:
         logger.warning("XAI_API_KEY environment variable not set.")
+    if not config['deepseek_api_key']:
+        logger.warning("DEEPSEEK_API_KEY environment variable not set.")
     if not config['anthropic_api_key']:
         logger.warning("ANTHROPIC_API_KEY environment variable not set.")
     if not config['quality_compute_api_key']:
